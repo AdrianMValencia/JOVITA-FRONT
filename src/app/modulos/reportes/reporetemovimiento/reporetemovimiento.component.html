@@ -1,0 +1,149 @@
+<div class="row">
+  <div class="col-lg-12">
+    <div class="ibox ">
+      <div class="ibox-title">
+        <h5>Aplicar filtro por :</h5>
+      </div>
+
+      <div class="ibox-content">
+        <form autocomplete="off" id="formGroup" [formGroup]="formGroup">
+          <div class="row">
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Del día:</label>
+                <input type="date" name="fecha" formControlName="fecha" class="form-control">
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Productos:</label>
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboProductos"
+                    [searchKeyword]="'nombre'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplateProductos"
+                    [notFoundTemplate]="notFoundTemplateProductos"
+                    (selected)='selectEventProductos($event)'
+                    formControlName="productos">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplateProductos let-item>
+                  <a [innerHTML]="item.nombre"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplateProductos let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Movimiento:</label>
+                <select class="form-control form-select" formControlName="tipo">
+                  <option value="">- Todos -</option>
+                  <option value="Entrada">Entradas</option>
+                  <option value="Salida">Salidas</option>
+                  <option value="Ajustes">Ajustes</option>
+                  <option value="Devoluciones">Devoluciones</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Categorias:</label>
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboCategorias"
+                    [searchKeyword]="'nombre'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplateCategorias"
+                    [notFoundTemplate]="notFoundTemplateCategorias"
+                    (selected)='selectEventCategorias($event)'
+                    formControlName="categorias">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplateCategorias let-item>
+                  <a [innerHTML]="item.nombre"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplateCategorias let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-12 d-flex justify-content-end">
+                <button type="button" (click)="downloadPDF()" class="btn btn-danger dim mr-2"><i class="fa fa-file-pdf-o"></i> Descargar PDF</button>
+                <button type="button" (click)="downloadExcel()" class="btn btn-primary dim"><i class="fa fa-file-excel-o"></i> Descargar Excel</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <hr>
+      <div class="ibox-content">
+        <div class="row">
+          <div class="col-lg-12">
+            <div id="dTableMain" class="melevation">
+              <table mat-table [dataSource]="MainDS" class="example-full-width" multiTemplateDataRows>
+                  <ng-container matColumnDef="hora">
+                      <th mat-header-cell class="text-center" *matHeaderCellDef> Hora </th>
+                      <td mat-cell *matCellDef="let element" style="text-align: center;" class='m-card-title' data-label='Hora :'>
+                          {{element.hora}}
+                      </td>
+                  </ng-container>
+                  <ng-container matColumnDef="idProducto">
+                      <th mat-header-cell class="text-center" *matHeaderCellDef> Descripción del Producto </th>
+                      <td mat-cell *matCellDef="let element" style="text-align: center;" class='has_label_on_mobile' data-label='Descripción del Producto :'>
+                          {{element.producto}}
+                      </td>
+                  </ng-container>
+                  <ng-container matColumnDef="habia">
+                      <th mat-header-cell class="text-center" *matHeaderCellDef> Habia </th>
+                      <td mat-cell *matCellDef="let element" style="text-align: center;" class='has_label_on_mobile' data-label='Habia :'>
+                          {{element.habia}}
+                      </td>
+                  </ng-container>
+                  <ng-container matColumnDef="tipo">
+                      <th mat-header-cell class="text-center" *matHeaderCellDef> Tipo </th>
+                      <td mat-cell *matCellDef="let element" style="text-align: center;" class='has_label_on_mobile' data-label='Tipo :'>
+                          <label class="label label-primary" *ngIf="element.tipo === 'Salida'" style="font-size: 1rem;">{{element.tipo}}</label>
+                          <label class="label label-info" *ngIf="element.tipo === 'Entrada'" style="font-size: 1rem;">{{element.tipo}}</label>
+                          <label class="label label-success" *ngIf="element.tipo === 'Devoluciones'" style="font-size: 1rem;">{{element.tipo}}</label>
+                          <label class="label label-warning" *ngIf="element.tipo === 'Ajustes'" style="font-size: 1rem;">{{element.tipo}}</label>
+                      </td>
+                  </ng-container>
+                  <ng-container matColumnDef="cantidad">
+                      <th mat-header-cell class="text-center" *matHeaderCellDef> Cantidad </th>
+                      <td mat-cell *matCellDef="let element" style="text-align: center;" class='has_label_on_mobile' data-label='Cantidad :'>
+                          {{element.cantidad}}
+                      </td>
+                  </ng-container>
+                  <ng-container matColumnDef="idCategoria">
+                    <th mat-header-cell class="text-center" *matHeaderCellDef> Categoria </th>
+                    <td mat-cell *matCellDef="let element" style="text-align: center;" class='has_label_on_mobile' data-label='Categoria :'>
+                        {{element.categoria}}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="noData">
+                      <mat-footer-cell *matFooterCellDef [attr.colspan]="MainDC.length">
+                          No se encuentran registros.
+                      </mat-footer-cell>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="MainDC; sticky: true"></tr>
+                  <tr mat-row *matRowDef="let row; columns: MainDC;"></tr>
+                  <mat-footer-row *matFooterRowDef="['noData']" [hidden]="MainDS && this.MainDS.filteredData.length > 0">
+                  </mat-footer-row>
+              </table>
+            </div>
+            <mat-paginator #pagMain style="display: contents;" [hidePageSize]="false" [pageSize]="10" showFirstLastButtons></mat-paginator>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,69 @@
+<div class="row">
+  <div class="col-lg-12">
+    <div class="ibox ">
+      <div class="ibox-title">
+        <h5>Lista Permisos</h5>
+      </div>
+      <div class="ibox-content">
+          <div class="row">
+            <div class="col-lg-5 form-group">
+              <label>Usuarios</label>
+              <div class="ng-autocomplete">
+                <ng-autocomplete
+                  [data]="cboUsuarios"
+                  [searchKeyword]="'nombre'"
+                  placeholder=""
+                  (selected)="selectEventUsuarios($event)"
+                  [itemTemplate]="itemTemplate"
+                  [notFoundTemplate]="notFoundTemplate">
+                </ng-autocomplete>
+
+                <ng-template #itemTemplate let-item>
+                <a [innerHTML]="item.nombre"></a>
+                </ng-template>
+
+                <ng-template #notFoundTemplate let-notFound>
+                <div [innerHTML]="notFound"></div>
+                </ng-template>
+              </div>
+            </div>
+            <div class="col-lg-5">
+              <div class="form-group">
+                <label>Rol</label>
+                <input type="text" class="form-control" [(ngModel)]="permiso.nombreRol" readonly>
+              </div>
+            </div>
+            <div class="col-lg-2">
+              <div class="form-group">
+                <button class="btn btn-success btn-block dim mt-3" (click)="savePermisos()"><i class="fa fa-save"></i></button>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-12">
+              <section class="example-section" *ngFor="let item of permisos">
+                <span class="example-list-section">
+                  {{item.nombre}}
+                </span>
+                <span class="example-list-section">
+                  <ul>
+                    <li *ngFor="let subtask of item.children">
+                      <mat-checkbox [(ngModel)]="subtask.completed">
+                        {{subtask.nombre}}
+                      </mat-checkbox>
+                      <!-- <div class="form-check abc-checkbox abc-checkbox-success">
+                          <input class="form-check-input" id="checkbox3" type="checkbox" [(ngModel)]="subtask.completed">
+                          <label class="form-check-label" for="checkbox3">
+                            {{subtask.nombre}}
+                          </label>
+                      </div> -->
+                    </li>
+                  </ul>
+                </span>
+              </section>
+            </div>
+          </div>
+      </div>
+    </div>
+  </div>
+</div>

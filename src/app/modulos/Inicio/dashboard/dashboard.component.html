@@ -1,0 +1,108 @@
+<div class="row">
+  <div class="col-lg-12 text-center">
+    <h1 class="font-weight-bolder">Dashboard de Ventas Totales por Mes</h1>
+  </div>
+  <hr>
+  <div class="col-lg-5">
+    <div class="form-group">
+      <label class="font-weight-bolder">Fecha de Inicio:</label>
+      <input type="date" name="fechaIni" [(ngModel)]="fechaIni" class="form-control">
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="form-group">
+      <label class="font-weight-bolder">Fecha Fin:</label>
+      <input type="date" name="fechaFin" [(ngModel)]="fechaFin" class="form-control">
+    </div>
+  </div>
+  <div class="col-lg-2">
+    <div class="form-group">
+      <button type="button" (click)="cargarDashboardMes()" class="btn btn-success dim mt-3"><i class="fa fa-search"></i></button>
+    </div>
+  </div>
+</div>
+<div class="row"  *ngIf="lineChartData.datasets.length > 0">
+  <hr>
+  <div class="col-lg-6">
+      <div class="card">
+          <div class="chart-wrapper">
+              <canvas baseChart [type]="'line'"
+                    [data]="lineChartData"
+                    [options]="lineChartOptions"
+                    [legend]="lineChartLegend">
+            </canvas>
+          </div>
+      </div>
+  </div>
+  <div class="col-lg-6">
+      <div class="card">
+          <div class="chart-wrapper">
+            <canvas baseChart
+                  [data]="barChartData"
+                  [options]="barChartOptions"
+                  [plugins]="barChartPlugins"
+                  [legend]="barChartLegend"
+                  [type]="'bar'">
+          </canvas>
+          </div>
+      </div>
+  </div>
+</div>
+<hr>
+
+<div class="row">
+  <div class="col-lg-12 text-center">
+    <h1 class="font-weight-bolder">Dashboard de Ventas Totales por Año</h1>
+  </div>
+  <hr>
+  <div class="col-lg-10">
+    <div class="form-group">
+      <label class="font-weight-bolder">Año:</label>
+      <select [(ngModel)]="fechaMesAno" (change)="cargarDashboardAnio()" class="form-control form-select">
+        <option value="2020">2020</option>
+        <option value="2021">2021</option>
+        <option value="2022">2022</option>
+        <option value="2023">2023</option>
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026">2026</option>
+        <option value="2027">2027</option>
+        <option value="2028">2028</option>
+        <option value="2029">2029</option>
+        <option value="2030">2030</option>
+      </select>
+    </div>
+  </div>
+  <div class="col-lg-2">
+    <div class="form-group">
+      <button type="button" (click)="cargarDashboardAnio()" class="btn btn-success dim mt-3"><i class="fa fa-search"></i></button>
+    </div>
+  </div>
+</div>
+<div class="row" *ngIf="lineChartDataAnio.datasets.length > 0">
+  <div class="col-lg-6">
+      <div class="card">
+          <div class="chart-wrapper">
+              <canvas baseChart [type]="'line'"
+                    [data]="lineChartDataAnio"
+                    [options]="lineChartOptionsAnio"
+                    [legend]="lineChartLegendAnio">
+            </canvas>
+          </div>
+      </div>
+  </div>
+  <div class="col-lg-6">
+      <div class="card">
+          <div class="chart-wrapper">
+            <canvas baseChart
+                  [data]="barChartDataAnio"
+                  [options]="barChartOptionsAnio"
+                  [plugins]="barChartPluginsAnio"
+                  [legend]="barChartLegendAnio"
+                  [type]="'bar'">
+          </canvas>
+          </div>
+      </div>
+  </div>
+</div>
+

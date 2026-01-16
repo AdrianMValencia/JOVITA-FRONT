@@ -1,0 +1,169 @@
+<div class="modal-header">
+    <h4 class="modal-title" id="modal-basic-title">Clientes</h4>
+    <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+  <div class="row">
+    <form autocomplete="off" novalidate [formGroup]="formGroup" (ngSubmit)="saveRegistro(formGroup)" class="col-lg-12">
+        <div class="row">
+          <div class="col-lg-6 form-group">
+            <div class="form-group">
+              <label>Punto de Venta</label>
+              <input type="text" name="puntoventa" formControlName="puntoventa" class="form-control" readonly>
+            </div>
+          </div>
+          <div class="col-lg-6 form-group">
+            <div class="form-group">
+              <label>Tipo de Documento</label>
+              <select name="idTipoDoi" formControlName="idTipoDoi" class="form-control form-select">
+                <option value="0">[SELECCIONE]</option>
+                <option *ngFor="let item of cboTipoCliente" [value]="item.id">{{item.tipo}}</option>
+              </select>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('idTipoDoi').invalid && (formGroup.get('idTipoDoi').dirty || formGroup.get('idTipoDoi').touched)">
+                Obligatorio.
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 form-group">
+            <div class="form-group">
+              <label>Nro. Documento</label>
+              <input type="text" name="numeroDoi" formControlName="numeroDoi" class="form-control" maxlength="15" minlength="8">
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('numeroDoi').invalid && (formGroup.get('numeroDoi').dirty || formGroup.get('numeroDoi').touched)">
+                Obligatorio.
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('numeroDoi').hasError('pattern')">
+                Solo números.
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('numeroDoi').hasError('maxLength')">
+                Máximo 15 caracteres.
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 mt-3">
+            <div class="form-group">
+              <button class="btn btn-primary dim" type="button" (click)="consultaSUNAT()">
+                <i class="fa fa-search"></i> Consulta de DNI o RUC
+              </button>
+            </div>
+          </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label>Razón Social</label>
+                <input type="text" name="nombre" formControlName="nombre" class="form-control" [readonly]="readonly">
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('nombre').invalid && (formGroup.get('nombre').dirty || formGroup.get('nombre').touched)">
+                  Obligatorio.
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboUbigeo"
+                    [searchKeyword]="'ubigeo'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplateUbigeo"
+                    [notFoundTemplate]="notFoundTemplateUbigeo"
+                    (selected)='selectEventUbigeo($event)'
+                    formControlName="ubigeos">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplateUbigeo let-item>
+                  <a [innerHTML]="item.ubigeo"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplateUbigeo let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('idUbigeo').invalid && (formGroup.get('idUbigeo').dirty || formGroup.get('idUbigeo').touched)">
+                  Obligatorio.
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label>Dirección</label>
+                <input type="text" class="form-control" formControlName="direccion">
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Pais</label>
+                <input type="text" class="form-control" formControlName="pais">
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Correo</label>
+                <input type="correo" class="form-control" formControlName="correo">
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('correo').invalid">
+                  Correo inválido.
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Celular</label>
+                <input type="text" class="form-control" formControlName="celular">
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('celular').hasError('pattern')">
+                  Celular inválido
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Teléfono</label>
+                <input type="text" class="form-control" formControlName="telefono">
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('celular').hasError('pattern')">
+                  Celular inválido
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-12">
+              <div class="form-group">
+                  <label class="font-weight-bold">Imágen:</label>
+                  <div class="input-group">
+                      <div class="col-lg-12 text-center p-2">
+                          <img *ngIf="!imagenTemp" [src]="sinFoto" style="width: 30%;">
+                          <img *ngIf="imagenTemp" [src]="imagenTemp" style="width: 30%;"><br><br>
+                          <button (click)="eliminarImagen()" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i> Eliminar Imágen</button>
+                      </div>
+                  </div>
+                  <div class="input-group">
+                      <div class="custom-file">
+                          <input id="inputGroupFile01" (change)="seleccionImagen($event)" type="file" class="custom-file-input" accept="image/*">
+                          <label class="custom-file-label" for="inputGroupFile01">{{textoImagen}}</label>
+                      </div>
+                  </div>
+              </div>
+            </div>
+            <div class="col-lg-12">
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea class="form-control" formControlName="observaciones"></textarea>
+              </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-6">
+                <mat-slide-toggle formControlName="status">Estado</mat-slide-toggle>
+            </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col-lg-6 form-group">
+              <button type="submit" class="btn btn-primary dim mr-2"><i class="fa fa-save"></i> GUARDAR</button>
+              <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-save"></i> CERRAR</button>
+          </div>
+        </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-footer">
+    <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

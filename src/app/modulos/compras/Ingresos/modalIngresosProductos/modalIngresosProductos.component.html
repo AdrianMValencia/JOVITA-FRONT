@@ -1,0 +1,131 @@
+<div class="modal-header">
+    <h4 class="modal-title" id="modal-basic-title">Agregar Item</h4>
+    <!-- <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+      <span class="material-icons">close</span>
+    </button> -->
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+    <div class="row">
+      <form autocomplete="off" novalidate [formGroup]="formGroup" (ngSubmit)="saveItems(formGroup)"  (keydown.enter)="$event.preventDefault()" class="col-lg-12">
+          <div class="row">
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Producto</label>
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboProductos"
+                    [searchKeyword]="'nombre'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplate2"
+                    [notFoundTemplate]="notFoundTemplate2"
+                    (selected)='selectEventProductos($event)'
+                    formControlName="productos">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplate2 let-item>
+                  <a [innerHTML]="item.nombre"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplate2 let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Fecha de Vencimiento</label>
+                <input type="date" class="form-control" name="fechaVencimiento" formControlName="fechaVencimiento">
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Lote</label>
+                <input type="text" class="form-control" name="loteProducto" formControlName="loteProducto">
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Precio de Compra </label>
+                <input type="text" class="form-control" formControlName="precio" (keyup)="calcularTotales(cantidad.value)" required>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precio').hasError('required')">Obligatorio</div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precio').hasError('pattern')">Texto Inválido</div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Precio de Venta</label>
+                <input type="text" class="form-control" formControlName="precioVenta" required>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precioVenta').hasError('required')">Obligatorio</div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precioVenta').hasError('pattern')">Texto Inválido</div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Cantidad</label>
+                <input type="text" class="form-control" formControlName="cantidad" #cantidadInput (keyup)="calcularTotales(cantidad.value)" required>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('cantidad').hasError('required')">Obligatorio</div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('cantidad').hasError('pattern')">Texto Inválido</div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Total</label>
+                <input type="text" class="form-control" formControlName="total" required readonly>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('total').hasError('required')">Texto Inválido</div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('total').hasError('pattern')">Texto Inválido</div>
+              </div>
+            </div>
+
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Precio Mínimo</label>
+                <input type="text" class="form-control" formControlName="precioMinimo" required>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precioMinimo').hasError('required')">Texto Inválido</div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precioMinimo').hasError('pattern')">Texto Inválido</div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Precio Máximo</label>
+                <input type="text" class="form-control" formControlName="precioMaximo" required>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precioMaximo').hasError('required')">Texto Inválido</div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precioMaximo').hasError('pattern')">Texto Inválido</div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label>Precio Mayoreo</label>
+                <input type="text" class="form-control" formControlName="precioMayor" required>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precioMayor').hasError('required')">Texto Inválido</div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precioMayor').hasError('pattern')">Texto Inválido</div>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <div class="form-group mt-3">
+                <mat-checkbox formControlName="bonificacion" (change)="calcularBonificacion($event)">Bonificación</mat-checkbox>
+              </div>
+            </div>
+
+            <div class="col-lg-12">
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea class="form-control" name="observaciones" formControlName="observaciones"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-lg-6 form-group">
+                <button type="submit" class="btn btn-primary dim mr-2"><i class="fa fa-save"></i> GUARDAR</button>
+                <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-times"></i> CERRAR</button>
+            </div>
+          </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-footer">
+    <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

@@ -1,0 +1,145 @@
+<div class="row">
+  <div class="col-lg-12">
+    <div class="ibox ">
+      <div class="ibox-title">
+        <h5>Ajustes de inventario</h5>
+              <div class="ibox-content">
+        <form autocomplete="off" id="fgMain" [formGroup]="fgMain">
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="form-group">
+                <label class="font-weight-bolder">Punto de Venta:</label>
+                <input type="text" name="puntoVenta" formControlName="puntoVenta" class="form-control" readonly>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Código de Barras:</label>
+                <input class="form-control form-control-sm" formControlName="codigo_barras">
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Productos:</label>
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboProductos"
+                    [searchKeyword]="'nombre'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplateProductos"
+                    [notFoundTemplate]="notFoundTemplateProductos"
+                    (selected)='selectEventProductos($event)'
+                    formControlName="productos">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplateProductos let-item>
+                  <a [innerHTML]="item.nombre"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplateProductos let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-lg-5">
+              <label class="font-weight-bolder">Fecha de Inicio:</label>
+              <input type="date" name="fechaIni" formControlName="fechaIni" class="form-control">
+            </div>
+            <div class="col-lg-5">
+                <label class="font-weight-bolder">Fecha Fin:</label>
+                <input type="date" name="fechaFin" formControlName="fechaFin" class="form-control">
+            </div>
+            <div class="col-lg-2">
+                <button type="button" (click)="new_fgMain()" class="btn btn-success dim mt-3"><i class="fa fa-eraser"></i></button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-6 d-flex justify-content-start">
+              <button (click)="crudRegistros()" type="button" class="btn btn-info dim mr-2"><i class="fa fa-save"></i> Agregar Ajuste</button>
+            </div>
+            <div class="col-lg-6 d-flex justify-content-end">
+                <button type="button" (click)="downloadPDF()" class="btn btn-danger dim mr-2"><i class="fa fa-file-pdf-o"></i> Descargar PDF</button>
+                <button type="button" (click)="downloadExcel()" class="btn btn-primary dim"><i class="fa fa-file-excel-o"></i> Descargar Excel</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <hr>
+        <div class="ibox-content">
+          <div class="row">
+            <div class="col-lg-12">
+              <div id="dTableMain" class="melevation table-responsive">
+                <table mat-table [dataSource]="MainDS" class="example-full-width" multiTemplateDataRows>
+                   <ng-container matColumnDef="index">
+                    <th mat-header-cell class="text-center" *matHeaderCellDef> # </th>
+                    <td mat-cell *matCellDef="let element; let i = dataIndex;" style="text-align: center;" class='m-card-title'
+                      data-label='# :'>
+                      {{i + 1}}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="puntoVenta">
+                    <th mat-header-cell class="text-center" *matHeaderCellDef> Punto de Venta </th>
+                    <td mat-cell *matCellDef="let element" style="text-align: center;" class='m-card-title'
+                      data-label='Punto de Venta :'>
+                      {{element.puntoVenta}}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="fecha">
+                    <th mat-header-cell class="text-center" *matHeaderCellDef> Fecha </th>
+                    <td mat-cell *matCellDef="let element" style="text-align: center;" class='m-card-title'
+                      data-label='Fecha :'>
+                      {{element.created_at | date:'dd/MM/yyyy'}}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="categoria">
+                    <th mat-header-cell class="text-center" *matHeaderCellDef> Categoria </th>
+                    <td mat-cell *matCellDef="let element" style="text-align: center;" class='m-card-title'
+                      data-label='Categoria :'>
+                      {{element.categoria}}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="producto">
+                    <th mat-header-cell *matHeaderCellDef> Producto </th>
+                    <td mat-cell *matCellDef="let element" class='m-card-title' data-label='Producto :'>
+                      {{element.nombreProducto}}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="codigo">
+                    <th mat-header-cell *matHeaderCellDef> Código de Barras </th>
+                    <td mat-cell *matCellDef="let element" class='m-card-title' data-label='Código de Barras :'>
+                      {{element.codigo_barras}}
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="cantidad">
+                    <th mat-header-cell class="text-center" *matHeaderCellDef> Cantidad </th>
+                    <td mat-cell *matCellDef="let element" style="text-align: center;" class='m-card-title'
+                      data-label='Cantidad :'>
+                      <div> {{element.cantidad == null ? '0.00' : element.cantidad | number:'0.2-2'}}</div>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="acciones">
+                    <th mat-header-cell *matHeaderCellDef> </th>
+                    <td mat-cell *matCellDef="let element; let i = index;">
+                      <button class="btn btn-info btn-rounded dim mr-3" (click)="viewDetail(element)"><i class="fa fa-edit"></i></button>
+                      <button type="button" (click)="eliminarRegistro(element)" title="ELIMINAR" class="btn btn-danger btn-sm dim"><span class="material-icons">delete</span></button>
+                    </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="MainDC"></tr>
+                  <tr mat-row *matRowDef="let row; columns: MainDC;"></tr>
+                </table>
+              </div>
+              <mat-paginator #pagMain style="display: contents;" [hidePageSize]="false" [pageSize]="10" showFirstLastButtons>
+                </mat-paginator>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

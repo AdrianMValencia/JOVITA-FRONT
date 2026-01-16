@@ -1,0 +1,30 @@
+export class CierreCaja{
+  constructor(
+    public id?: number | any,
+    public idUsuario?: string | any,
+    public usuario?: string | any,
+    public fecha?: Date | any,
+    public idPuntoVenta?: string | any,
+    public puntoventa?: string | any,
+    public tipo?: string | any,
+    public inicioCaja?: string | any,
+    public entradaDinero?: string | any,
+    public entradaTotal?: string | any,
+    public salidaDinero?: string | any,
+    public pagoProveedores?: string | any,
+    public salidasTotal?: string | any,
+    public numeroTicket?: number | any,
+    public pagoCreaditos?: string | any,
+    public pagosEfectivo?: string | any,
+    public totalGeneral?: string | any,
+    public motivo?: string | any,
+    public idProveedor?: number | any,
+    public ruc?: string | any,
+    public razonSocial?: string | any,
+    public idCompras?: string | any,
+    public otros?: string | any,
+    public idMedioPago?: number | any,
+    public ingresoSobrante?: string | any,
+    public ingresoSobranteTotal?: string | any
+  ){}
+}

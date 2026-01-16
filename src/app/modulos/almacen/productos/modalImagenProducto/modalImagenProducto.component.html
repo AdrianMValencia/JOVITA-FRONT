@@ -1,0 +1,19 @@
+<div class="modal-header">
+  <h4 class="modal-title">Subir Imagen de Producto</h4>
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+    <span class="material-icons">close</span>
+  </button>
+</div>
+<div class="modal-body">
+  <div *ngIf="progressBar" class="text-center mb-2">
+    <span>Cargando...</span>
+  </div>
+  <div *ngIf="imagenUrl" class="mb-3 text-center">
+    <label>Imagen actual:</label><br>
+    <img [src]="imagenUrl" alt="Imagen actual" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #ccc;" />
+    <br>
+    <button class="btn btn-danger mt-2" (click)="eliminarImagen()" [disabled]="progressBar">Eliminar Imagen</button>
+  </div>
+  <input type="file" (change)="onFileChange($event)" accept="image/*" class="form-control mb-3" />
+  <button class="btn btn-primary" (click)="subirImagen()" [disabled]="!imagenFile || progressBar">Subir Imagen</button>
+</div>

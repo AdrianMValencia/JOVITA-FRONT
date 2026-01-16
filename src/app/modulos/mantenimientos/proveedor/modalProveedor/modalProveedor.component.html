@@ -1,0 +1,179 @@
+<div class="modal-header">
+  <h4 class="modal-title" id="modal-basic-title">{{ titulo }}</h4>
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+  <div class="row">
+      <form autocomplete="off" novalidate [formGroup]="formGroup" (ngSubmit)="saveProveedor(formGroup)" class="col-lg-12">
+          <div class="row">
+            <div class="col-lg-6 form-group">
+              <label>Punto de Venta</label>
+              <!-- <div class="ng-autocomplete">
+                <ng-autocomplete
+                  [data]="cboPuntoVentas"
+                  [searchKeyword]="'nombre'"
+                  placeholder=""
+                  [itemTemplate]="itemTemplate"
+                  [notFoundTemplate]="notFoundTemplate"
+                  (selected)='selectEvent($event)'
+                  formControlName="puntoventa">
+                </ng-autocomplete>
+
+                <ng-template #itemTemplate let-item>
+                <a [innerHTML]="item.nombre"></a>
+                </ng-template>
+
+                <ng-template #notFoundTemplate let-notFound>
+                <div [innerHTML]="notFound"></div>
+                </ng-template>
+              </div> -->
+              <input type="text" name="puntoVenta" formControlName="puntoventa" class="form-control" readonly>
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Tipo de Documento</label>
+              <div class="ng-autocomplete">
+                <ng-autocomplete
+                  [data]="cboTipoDoi"
+                  [searchKeyword]="'tipo'"
+                  placeholder=""
+                  [itemTemplate]="itemTemplateTipoDoi"
+                  [notFoundTemplate]="notFoundTemplateTipoDoi"
+                  (selected)='selectEventTipoDoi($event)'
+                  formControlName="tipodoi">
+                </ng-autocomplete>
+
+                <ng-template #itemTemplateTipoDoi let-item>
+                <a [innerHTML]="item.tipo"></a>
+                </ng-template>
+
+                <ng-template #notFoundTemplateTipoDoi let-notFound>
+                <div [innerHTML]="notFound"></div>
+                </ng-template>
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Número</label>
+              <input type="text" formControlName="numeroDoi" maxlength="15" class="form-control">
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('numeroDoi').hasError('required')">
+                Obligatorio.
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('numeroDoi').hasError('pattern')">
+                Solo números.
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('numeroDoi').hasError('maxLength')">
+                Máximo 15 caracteres.
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Nombre</label>
+              <input type="text" formControlName="nombre" class="form-control">
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('nombre').invalid && (formGroup.get('nombre').dirty || formGroup.get('nombre').touched)">
+                Obligatorio.
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Razón Social</label>
+              <input type="text" formControlName="razonsocial" class="form-control">
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('razonsocial').invalid && (formGroup.get('razonsocial').dirty || formGroup.get('razonsocial').touched)">
+                Obligatorio.
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>País</label>
+              <input type="text" formControlName="pais" class="form-control">
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Ubigeos</label>
+              <div class="ng-autocomplete">
+                <ng-autocomplete
+                  [data]="cboUbigeo"
+                  [searchKeyword]="'ubigeo'"
+                  placeholder=""
+                  [itemTemplate]="itemTemplateUbigeo"
+                  [notFoundTemplate]="notFoundTemplateUbigeo"
+                  (selected)='selectEventUbigeo($event)'
+                  formControlName="ubigeos">
+                </ng-autocomplete>
+
+                <ng-template #itemTemplateUbigeo let-item>
+                <a [innerHTML]="item.ubigeo"></a>
+                </ng-template>
+
+                <ng-template #notFoundTemplateUbigeo let-notFound>
+                <div [innerHTML]="notFound"></div>
+                </ng-template>
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Dirección</label>
+              <input type="text" formControlName="direccion" class="form-control">
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Correo</label>
+              <input type="text" formControlName="correo" maxlength="50" class="form-control">
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('correo').invalid">
+                Correo inválido.
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('correo').hasError('maxLength')">
+                Máximo 50 caracteres.
+              </div>
+            </div>
+            <div class="col-lg-3 form-group">
+              <label>Celular</label>
+              <input type="text" formControlName="celular" maxlength="15" class="form-control">
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('celular').hasError('maxLength')">
+                Máximo 15 caracteres.
+              </div>
+            </div>
+            <div class="col-lg-3 form-group">
+              <label>Teléfono</label>
+              <input type="text" formControlName="telefono" maxlength="10" class="form-control">
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('telefono').hasError('maxLength')">
+                Máximo 10 caracteres.
+              </div>
+            </div>
+            <div class="col-lg-12">
+              <div class="form-group">
+                  <label class="font-weight-bold">Imágen:</label>
+                  <div class="input-group">
+                      <div class="col-lg-12 text-center p-2">
+                          <img *ngIf="!imagenTemp" [src]="sinFoto" style="width: 30%;">
+                          <img *ngIf="imagenTemp" [src]="imagenTemp" style="width: 30%;"><br><br>
+                          <button (click)="eliminarImagen()" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i> Eliminar Imágen</button>
+                      </div>
+                  </div>
+                  <div class="input-group">
+                      <div class="custom-file">
+                          <input id="inputGroupFile01" (change)="seleccionImagen($event)" type="file" class="custom-file-input" accept="image/*">
+                          <label class="custom-file-label" for="inputGroupFile01">{{textoImagen}}</label>
+                      </div>
+                  </div>
+              </div>
+            </div>
+            <div class="col-lg-12 form-group">
+              <label>Observaciones</label>
+              <textarea name="observaciones" formControlName="observaciones" class="form-control" cols="10" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="row">
+              <div class="col-lg-6 form-group">
+                  <mat-slide-toggle formControlName="status">Estado</mat-slide-toggle>
+              </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-lg-6 form-group">
+                <button type="submit" class="btn btn-primary dim mr-2"><i class="fa fa-save"></i> GUARDAR</button>
+                <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-save"></i> CERRAR</button>
+            </div>
+          </div>
+      </form>
+  </div>
+</div>
+
+<div class="modal-footer">
+  <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

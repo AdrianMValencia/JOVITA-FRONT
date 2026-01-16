@@ -1,0 +1,103 @@
+<div class="modal-header">
+    <h4 class="modal-title" id="modal-basic-title">Detalle de Item</h4>
+    <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+  <div class="row">
+      <form autocomplete="off" novalidate [formGroup]="formGroup" (ngSubmit)="saveItems(formGroup)" class="col-lg-12">
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="form-group">
+                <label class="font-weight-bolder">Producto:</label>
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboProductos"
+                    [searchKeyword]="'nombre'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplate2"
+                    [notFoundTemplate]="notFoundTemplate2"
+                    (selected)='selectEventProductos($event)'
+                    formControlName="productos">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplate2 let-item>
+                  <a [innerHTML]="item.nombre"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplate2 let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('idProducto').hasError('required')">Obligatorio</div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+              <div class="col-lg-12">
+                  <div class="form-group">
+                      <label>Descripción</label>
+                      <input type="text" class="form-control" formControlName="descripcion">
+                  </div>
+              </div>
+          </div>
+        <div class="row">
+          <div class="col-lg-4">
+              <div class="form-group">
+                  <label>Cantidad</label>
+                  <input type="text" class="form-control" formControlName="cantidad" (keyup)="calcularTotales(cantidad.value)">
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('cantidad').hasError('required')">Obligatorio</div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('cantidad').hasError('pattern')">Texto Inválido</div>
+          </div>
+          <div class="col-lg-4">
+              <div class="form-group">
+                  <label>Valor Venta</label>
+                  <input type="text" class="form-control" formControlName="precio" (keyup)="calcularTotales(cantidad.value)">
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precio').hasError('required')">Obligatorio</div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('precio').hasError('pattern')">Texto Inválido</div>
+          </div>
+          <div class="col-lg-4">
+              <div class="form-group">
+                  <label>SubTotal</label>
+                  <input type="text" class="form-control" formControlName="subtotal" required readonly>
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('subtotal').hasError('required')">Texto Inválido</div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('subtotal').hasError('pattern')">Texto Inválido</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-lg-4">
+              <div class="form-group">
+                  <label>IGV</label>
+                  <input type="text" class="form-control" formControlName="igv" required readonly>
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('igv').hasError('required')">Texto Inválido</div>
+          </div>
+          <div class="col-lg-4">
+              <div class="form-group">
+                  <label>Total</label>
+                  <input type="text" class="form-control" formControlName="total" required readonly>
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('total').hasError('required')">Texto Inválido</div>
+          </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col-lg-6">
+            <div class="form-group">
+              <button type="submit" class="btn btn-primary dim mr-2"><i class="fa fa-save"></i> AGREGAR</button>
+              <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-times"></i> CERRAR</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+</div>
+
+<div class="modal-footer">
+    <mat-progress-bar *ngIf="pbModal" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

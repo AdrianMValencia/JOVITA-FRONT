@@ -1,0 +1,80 @@
+<div class="row">
+  <div class="col-lg-12">
+    <div class="ibox ">
+      <div class="ibox-title">
+        <h5 class="modal-title" id="modal-basic-title">FORMULARIO DE INGRESO DE PRODUCTOS FALTANTES</h5>
+      </div>
+      <div class="ibox-content">
+        <div class="row">
+          <div class="col-lg-12">
+            <div class="form-group">
+              <input class="form-control form-control-sm" id="codigoBarra" (input)="onEnter($event.target)" placeholder="INGRESE CÓDIGO DEL PRODUCTO">
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="form-group">
+              <label>Punto de Venta</label>
+              <input type="text" name="puntoVenta" [(ngModel)]="productosFaltantes.puntoVenta" class="form-control" readonly>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="form-group">
+              <label>Vendedor</label>
+              <input type="text" name="usuario" [(ngModel)]="productosFaltantes.usuario" class="form-control" readonly>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="form-group">
+              <label>Fecha</label>
+              <input type="datetime-local" name="fecha" [(ngModel)]="productosFaltantes.fecha" class="form-control">
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="form-group">
+              <label class="font-weight-bolder">Producto</label>
+              <div class="ng-autocomplete">
+                <ng-autocomplete
+                  [data]="cboProductos"
+                  [searchKeyword]="'nombre'"
+                  placeholder=""
+                  [itemTemplate]="itemTemplate2"
+                  [notFoundTemplate]="notFoundTemplate2"
+                  (selected)='selectEventProductos($event)'
+                  [(ngModel)]="productosFaltantes.productos"
+                  >
+                </ng-autocomplete>
+
+                <ng-template #itemTemplate2 let-item>
+                <a [innerHTML]="item.nombre"></a>
+                </ng-template>
+
+                <ng-template #notFoundTemplate2 let-notFound>
+                <div [innerHTML]="notFound"></div>
+                </ng-template>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="form-group">
+              <label>Precio Venta</label>
+              <input type="text" name="ingresoSobrante" [(ngModel)]="productosFaltantes.precioVenta" class="form-control" readonly>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="form-group">
+              <label>Cantidad</label>
+              <input type="text" name="entradaTotal" [(ngModel)]="productosFaltantes.cantidad" (keyup)="calcularTotal($event.target)" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-lg-12">
+            <button class="btn btn-outline btn-primary mr-2 dim" (click)="guardarRegistro()"><i class="fa fa-save"></i> GRABAR</button>
+            <button type="button" class="btn btn-outline btn-default dim" routerLink="/compras/productos-faltantes"><i class="fa fa-arrow-left"></i> REGRESAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

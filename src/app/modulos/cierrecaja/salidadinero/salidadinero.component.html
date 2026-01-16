@@ -1,0 +1,53 @@
+<div class="row">
+  <div class="col-lg-12">
+    <div class="ibox ">
+      <div class="ibox-title">
+        <h5 class="modal-title" id="modal-basic-title">FORMULARIO DE INGRESO DE DATOS</h5>
+      </div>
+      <div class="ibox-content">
+        <div class="row">
+          <div class="col-lg-6">
+            <div class="form-group">
+              <label>Punto de Venta</label>
+              <input type="text" name="puntoventa" [(ngModel)]="cierreCajas.puntoventa" class="form-control" readonly>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="form-group">
+              <label>Usuario</label>
+              <input type="text" name="usuario" [(ngModel)]="cierreCajas.usuario" class="form-control" readonly>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="form-group">
+              <label>Fecha</label>
+              <input type="datetime-local" name="fecha" [(ngModel)]="cierreCajas.fecha" class="form-control">
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="form-group">
+              <label>Monto</label>
+              <input type="text" name="salidaDinero" [(ngModel)]="cierreCajas.salidaDinero" class="form-control" (keyup)="calcularSalidaDinero($event.target)"  (input)="funcionesService.soloAceptarNumerosPuntoDecimal($event.target)">
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="form-group">
+              <label>Total</label>
+              <input type="text" name="salidasTotal" [(ngModel)]="cierreCajas.salidasTotal" class="form-control" readonly>
+            </div>
+          </div>
+          <div class="col-lg-12">
+            <div class="form-group">
+              <label>Motivo</label>
+              <textarea name="entradaTotal" [(ngModel)]="cierreCajas.motivo" class="form-control"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-lg-12"><button class="btn btn-outline btn-primary dim" (click)="GUARDARSALIDAPROVEEDORES('S')"><i class="fa fa-save"></i> GRABAR</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

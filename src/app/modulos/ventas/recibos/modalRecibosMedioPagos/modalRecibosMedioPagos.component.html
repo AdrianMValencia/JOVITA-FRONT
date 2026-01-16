@@ -1,0 +1,61 @@
+<div class="modal-header">
+    <h4 class="modal-title" id="modal-basic-title">COBRAR</h4>
+    <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+  <div class="row">
+      <div class="col-lg-8">
+          <div class="medioPago">
+              <mat-card>
+                  <div class="row">
+                      <div class="col-lg-12 text-center">
+                          <h3 class="modal-title" id="modal-basic-title" style="font-size: 3rem;">Total a Cobrar</h3>
+                      </div>
+                      <div class="col-lg-12 text-center">
+                        <h1 class="font-weight-bolder" style="font-size: 4rem;">{{ recibos.total }}</h1>
+                      </div>
+                      <div class="col-lg-6">
+                          <div class="form-group" style="font-size: 1.5rem;">
+                              <label>Medio de Pago</label>
+                              <select name="idMedioPago" [(ngModel)]="medioPago.idMedioPago" (selectionchange)="selectEventMedios($event.target)" class="form-control form-select" style="font-size: 30px;height: 10%;">
+                                <option value="0">[SELECCIONE]</option>
+                                <option *ngFor="let item of cboMedio" [value]="item.id">{{ item.nombre }}</option>
+                              </select>
+                          </div>
+                      </div>
+                      <div class="col-lg-6">
+                          <div class="form-group" style="font-size: 1.5rem;">
+                              <label>Pagó Con</label>
+                              <input type="text" class="form-control" [(ngModel)]="medioPago.importe" (keyup)="calcularTotales()" required style="font-size: 30px;height: 10%;">
+                          </div>
+                      </div>
+                      <div class="col-lg-12">
+                          <div class="form-group" style="font-size: 1.5rem;">
+                              <label>Nota</label>
+                              <input type="text" class="form-control" [(ngModel)]="medioPago.nota">
+                          </div>
+                      </div>
+                    <div class="col-lg-12 text-center">
+                      <h3 class="modal-title" id="modal-basic-title" style="font-size: 3rem;">Su Cambio</h3><br>
+                      <h1 class="font-weight-bolder p-0 m-0" style="font-size: 4rem;">{{ vuelto }}</h1>
+                    </div>
+                  </div>
+              </mat-card>
+          </div>
+      </div>
+      <div class="col-lg-4">
+        <button class="btn btn-outline btn-primary btn-sm btn-block dim" [disabled]="progressBar" (click)="crearDocumentoPDF()" type="button"><i class="fa fa-print"></i> Cobrar e Imprimir Ticket</button>
+        <button class="btn btn-outline btn-primary btn-sm btn-block dim" [disabled]="progressBar" (click)="crearDocumento()" type="button"><i class="fa fa-print"></i> Cobrar solo registrando la venta</button>
+        <button class="btn btn-outline btn-danger btn-sm btn-block dim" (click)="activeModal.dismiss()" type="button"><i class="fa fa-times"></i>ESC - CERRAR</button>
+        <div class="text-center font-weight-bolder">Total de Articulos: <br><span style="font-size: 1.5rem;">{{ cantidad }}</span></div>
+      </div>
+  </div>
+</div>
+
+<div class="modal-footer">
+    <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

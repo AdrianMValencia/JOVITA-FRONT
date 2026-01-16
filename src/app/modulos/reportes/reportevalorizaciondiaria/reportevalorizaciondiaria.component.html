@@ -1,0 +1,54 @@
+<div class="row">
+  <div class="col-lg-12">
+    <div class="ibox ">
+      <div class="ibox-content">
+        <div class="row">
+          <div class="col-lg-12 d-flex justify-content-end">
+              <button type="button" (click)="downloadPDF()" class="btn btn-danger dim mr-2"><i class="fa fa-file-pdf-o"></i> Descargar PDF</button>
+              <button type="button" (click)="downloadExcel()" class="btn btn-primary dim"><i class="fa fa-file-excel-o"></i> Descargar Excel</button>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <div class="ibox-content">
+        <div class="row">
+          <div class="col-lg-12">
+            <div id="dTableMain" class="melevation">
+              <table mat-table [dataSource]="MainDS" class="example-full-width" multiTemplateDataRows>
+                  <ng-container matColumnDef="puntoVenta">
+                      <th mat-header-cell class="text-center" *matHeaderCellDef> Punto de Venta </th>
+                      <td mat-cell *matCellDef="let element" style="text-align: center;" class='m-card-title' data-label='Punto de Venta :'>
+                          {{element.puntoVenta}}
+                      </td>
+                  </ng-container>
+                  <ng-container matColumnDef="fecha">
+                      <th mat-header-cell class="text-center" *matHeaderCellDef> Fecha </th>
+                      <td mat-cell *matCellDef="let element" style="text-align: center;" class='has_label_on_mobile' data-label='Fecha :'>
+                          {{element.created_at | date:'dd/MM/y'}}
+                      </td>
+                  </ng-container>
+                  <ng-container matColumnDef="valorizado">
+                      <th mat-header-cell class="text-center" *matHeaderCellDef> Valorizado </th>
+                      <td mat-cell *matCellDef="let element" style="text-align: center;" class='has_label_on_mobile' data-label='Valorizado :'>
+                          {{element.valorizado | number:'0.2-2'}}
+                      </td>
+                  </ng-container>
+                  <ng-container matColumnDef="noData">
+                      <mat-footer-cell *matFooterCellDef [attr.colspan]="MainDC.length">
+                          No se encuentran registros.
+                      </mat-footer-cell>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="MainDC; sticky: true"></tr>
+                  <tr mat-row *matRowDef="let row; columns: MainDC;"></tr>
+                  <mat-footer-row *matFooterRowDef="['noData']" [hidden]="MainDS && this.MainDS.filteredData.length > 0">
+                  </mat-footer-row>
+              </table>
+            </div>
+            <mat-paginator #pagMain style="display: contents;" [hidePageSize]="false" [pageSize]="10" showFirstLastButtons></mat-paginator>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

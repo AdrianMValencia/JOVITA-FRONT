@@ -1,0 +1,34 @@
+<div class="modal-header">
+    <h4 class="modal-title" id="modal-basic-title">ENVIAR CORREO</h4>
+    <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+  <div class="row">
+      <div class="col-sm-12 text-center">
+          <h1 class="font-weight">Enviar Email</h1>
+      </div>
+      <div class="col-sm-12 text-center">
+          <h3>RECIBO N° {{recibos.series}}-{{recibos.numeracion}}</h3>
+      </div>
+      <div class="col-sm-12 text-center">
+          <h4>{{recibos.documento}} {{recibos.razonSocial}}</h4>
+      </div>
+      <div class="col-sm-12 text-center">
+          <h4>{{recibos.correo}}</h4>
+      </div>
+  </div>
+  <div class="row mt-3">
+    <div class="col-lg-12">
+        <button type="button" class="btn btn-primary dim mr-2" (click)="enviarCorreo()"><i class="fa fa-save"></i> ENVIAR CORREO</button>
+        <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-save"></i> CERRAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-footer">
+    <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

@@ -1,0 +1,28 @@
+export class Barras{
+  constructor(
+    public enero?: string | any,
+    public febrero?: string | any,
+    public marzo?: string | any,
+    public abril?: string | any,
+    public mayo?: string | any,
+    public junio?: string | any,
+    public julio?: string | any,
+    public agosto?: string | any,
+    public septiembre?: string | any,
+    public octubre?: string | any,
+    public noviembre?: string | any,
+    public diciembre?: string | any,
+    public enero2?: string | any,
+    public febrero2?: string | any,
+    public marzo2?: string | any,
+    public abril2?: string | any,
+    public mayo2?: string | any,
+    public junio2?: string | any,
+    public julio2?: string | any,
+    public agosto2?: string | any,
+    public septiembre2?: string | any,
+    public octubre2?: string | any,
+    public noviembre2?: string | any,
+    public diciembre2?: string | any,
+  ){}
+}

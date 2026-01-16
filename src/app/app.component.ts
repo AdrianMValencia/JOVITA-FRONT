@@ -1,10 +1,18 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 
 @Component({
   selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
+  templateUrl: './app.component.html'
 })
-export class AppComponent {
-  title = 'web';
+export class AppComponent implements OnInit {
+  title = 'app';
+  lControl: boolean = false;
+
+  constructor(
+    private cdr: ChangeDetectorRef
+    ){}
+
+  ngOnInit() {
+    this.cdr.detectChanges();
+  }
 }

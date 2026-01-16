@@ -1,0 +1,38 @@
+<div class="middle-box text-center loginscreen animated fadeInDown">
+  <div>
+      <div class="form-group">
+        <img src="assets/img/logo.png" class="img-fluid" />
+      </div>
+      <div class="form-group">
+          <input type="text" class="form-control" [(ngModel)]="usuario.usuario" placeholder="Usuario" required="">
+      </div>
+      <div class="form-group">
+        <div class="input-group">
+          <input [type]="type" class="form-control" [(ngModel)]="usuario.password" placeholder="Contraseña" required="">
+          <span class="input-group-append">
+            <button *ngIf="type === 'password'" type="button" class="btn btn-primary" (click)="mostrar(1)"><i class="fa fa-eye"></i></button>
+            <button *ngIf="type === 'text'" type="button" class="btn btn-primary" (click)="mostrar(2)"><i class="fa fa-eye-slash"></i></button>
+          </span>
+        </div>
+      </div>
+      <div class="form-group" *ngIf="existePuntoVenta && usuario.idRol !== 1">
+        <select [(ngModel)]="idPuntoVenta" class="form-control form-select" (change)="validarPuntoVenta($event.target)">
+          <option value="0">[SELECCIONE SU PUNTO DE VENTA]</option>
+          <option *ngFor="let item of cboPuntoVenta" [value]="item.id">{{item.nombre}}</option>
+        </select>
+      </div>
+      <div class="form-group" *ngIf="existePuntoVenta && usuario.idRol === 1">
+        <select [(ngModel)]="idPuntoVenta" class="form-control form-select" (change)="validarPuntoVenta($event.target)">
+          <option value="0">[SELECCIONE SU PUNTO DE VENTA]</option>
+          <option *ngFor="let item of cboPuntoVenta" [value]="item.id">{{item.nombre}}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <section class="example-section">
+          <mat-checkbox class="abc-checkbox-primary" style="margin-bottom: 0px;color: white;" [(ngModel)]="recuerdame">Recuerdame</mat-checkbox>
+        </section>
+      </div>
+      <button type="button" (click)="ingresar()" class="btn btn-primary block full-width m-b">Ingresar</button>
+      <p class="m-t"> <small>Todos los derechos reservados &copy; {{fecha}}</small> </p>
+  </div>
+</div>

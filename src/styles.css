@@ -1,1 +1,53 @@
-/* You can add global styles to this file, and also import other style files */
+@import "~@ng-select/ng-select/themes/default.theme.css";
+
+label {
+  margin-bottom: 0 !important;
+}
+.swal2-container {
+  z-index: 2060 !important;
+}
+
+.example-form {
+  min-width: 150px;
+  max-width: 500px;
+  width: 100%;
+}
+
+.example-full-width {
+  width: 100%;
+}
+
+.ng-autocomplete {
+  width: 100% !important;
+}
+
+.oculto{
+  display: none !important;
+}
+
+.highlight{
+  background: yellow;
+}
+
+tr:focus{
+      outline: none;
+  }
+
+.productoStock{
+  background-color: orange !important;
+  color: white !important;
+}
+
+.productoSinStock{
+  background-color: red !important;
+  color: white !important;
+}
+
+.modal-content{
+  background-color: #EDE4DD;
+}
+
+.nav-label{
+  font-size: 16px;
+  font-weight: bolder;
+}

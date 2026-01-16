@@ -1,0 +1,29 @@
+<div class="row border-bottom">
+  <nav class="navbar navbar-static-top" role="navigation" style="margin-bottom: 0">
+  <div class="navbar-header">
+      <a class="navbar-minimalize minimalize-styl-2 btn btn-primary " href="#"><i class="fa fa-bars"></i> </a>
+      <form role="search" class="navbar-form-custom" action="">
+          <div class="form-group">
+          </div>
+      </form>
+  </div>
+      <ul class="nav navbar-top-links navbar-right mt-3">
+          <li *ngIf="idRol !== '1' && idRol !== 1 ">
+              <span class="m-r-sm text-dark welcome-message text-uppercase font-weight-bolder">PUNTO DE VENTA {{ puntoVentas.nombre }}</span>
+          </li>
+          <li *ngIf="idRol === '1' || idRol === 1">
+              <span class="m-r-sm text-dark  text-uppercase font-weight-bolder">
+                <select name="puntoVenta" class="form-control form-select" [(ngModel)]="puntoVentas.id" (change)="validarPuntoVenta($event.target)">
+                  <option *ngFor="let item of puntoVenta" [value]="item.id">{{ item.nombre }}</option>
+                </select>
+              </span>
+          </li>
+          <li>
+              <a (click)="userService.logout()">
+                  <i class="fa fa-sign-out"></i> Salir
+              </a>
+          </li>
+      </ul>
+
+  </nav>
+  </div>

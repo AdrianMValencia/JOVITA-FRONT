@@ -1,0 +1,256 @@
+<div class="row">
+  <div class="col-lg-12">
+    <div class="ibox ">
+      <div class="ibox-title">
+        <h5>Aplicar filtro por :</h5>
+      </div>
+      <div class="ibox-content">
+        <form autocomplete="off" id="fgMain" [formGroup]="fgMain">
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="form-group">
+                <label class="font-weight-bolder">Punto de Venta:</label>
+                <input type="text" name="serie" [value]="puntoVentas.nombre"  class="form-control" readOnly>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Clientes:</label>
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboClientes"
+                    [searchKeyword]="'nombre'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplate"
+                    [notFoundTemplate]="notFoundTemplate"
+                    formControlName="clientes">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplate let-item>
+                  <a [innerHTML]="item.nombre"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplate let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Producto:</label>
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboProductos"
+                    [searchKeyword]="'nombre'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplate2"
+                    [notFoundTemplate]="notFoundTemplate2"
+                    formControlName="productos">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplate2 let-item>
+                  <a [innerHTML]="item.nombre"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplate2 let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Serie:</label>
+                <input type="text" name="serie" [value]="cboSeries.serie"  class="form-control" readOnly>
+              </div>
+            </div>
+            <div class="col-lg 6">
+              <div class="form-group">
+                <label class="font-weight-bolder">Numeración:</label>
+                <input type="text" name="serie" formControlName="numeracion"  class="form-control">
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-5">
+              <div class="form-group">
+                <label class="font-weight-bolder">Fecha de Inicio:</label>
+                <input type="date" name="fechaIni" formControlName="fechaIni" class="form-control">
+              </div>
+            </div>
+            <div class="col-lg-5">
+              <div class="form-group">
+                <label class="font-weight-bolder">Fecha Fin:</label>
+                <input type="date" name="fechaFin" formControlName="fechaFin" class="form-control">
+              </div>
+            </div>
+            <div class="col-lg-2">
+              <div class="form-group">
+                <button type="button" (click)="buscar()" class="btn btn-success dim mt-3"><i class="fa fa-search"></i></button>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-6 d-flex justify-content-start">
+              <!-- <button [disabled]="tipoCambios.length === 0" (click)="crudRegistros()" type="button" class="btn btn-info dim mr-2"><i class="fa fa-save"></i> Agregar Ticket</button> -->
+            </div>
+            <div class="col-lg-6 d-flex justify-content-end">
+                <button type="button" (click)="downloadPDFOnly()" class="btn btn-danger dim mr-2"><i class="fa fa-file-pdf-o"></i> Descargar PDF</button>
+                <button type="button" (click)="downloadExcel()" class="btn btn-primary dim"><i class="fa fa-file-excel-o"></i> Descargar Excel</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="ibox-content">
+        <div class="row">
+          <div class="col-lg-12">
+              <div id="dTableMain" class="melevation">
+                  <table mat-table [dataSource]="MainDS" style="width: 100%;" multiTemplateDataRows>
+                      <ng-container matColumnDef="fechaEmision">
+                          <th mat-header-cell *matHeaderCellDef> Fecha Emisión </th>
+                          <td mat-cell *matCellDef="let element" class='m-card-title' data-label='Fecha Emisión :'>
+                              {{element.created_at | date: 'dd/MM/y hh:mm'}}
+                          </td>
+                      </ng-container>
+                      <ng-container matColumnDef="numeracion">
+                          <th mat-header-cell *matHeaderCellDef> Número </th>
+                          <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Número :'>
+                              {{element.series}}-{{element.numeracion}}
+                          </td>
+                      </ng-container>
+
+                      <ng-container matColumnDef="vendedor">
+                          <th mat-header-cell *matHeaderCellDef> Vendedor </th>
+                          <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Vendedor :'>
+                              {{element.vendedor}}
+                          </td>
+                      </ng-container>
+                      <ng-container matColumnDef="total">
+                          <th mat-header-cell *matHeaderCellDef> Total </th>
+                          <td mat-cell *matCellDef="let element" style=" font-weight: bolder;" class='has_label_on_mobile' data-label='Total :'>
+                              {{element.total | number:'0.2-2'}}
+                          </td>
+                      </ng-container>
+
+                      <ng-container matColumnDef="pdf">
+                          <th mat-header-cell *matHeaderCellDef> PDF </th>
+                          <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='PDF :'>
+                              <a (click)="downloadPDF(element)" class="cursor">
+                                  <span class="material-icons text-danger">
+                            picture_as_pdf
+                          </span>
+                              </a>
+                          </td>
+                      </ng-container>
+
+                      <ng-container matColumnDef="opciones">
+                          <th mat-header-cell *matHeaderCellDef> Opciones </th>
+                          <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Opciones :'>
+                              <select class="form-control form-select" (change)="enviarEmail($event.target, element)">
+                                  <option value = "0">[SELECCIONE]</option>
+                                  <option value = "1">Enviar al cliente</option>
+                                  <option value = "2">Enviar a un email personalizado</option>
+                              </select>
+                          </td>
+                      </ng-container>
+                      <ng-container matColumnDef="acciones">
+                        <th mat-header-cell *matHeaderCellDef> Acciones </th>
+                        <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Acciones :'>
+                          <button class="btn btn-primary btn-rounded dim mt-2" (click)="viewDetail(element)"><i class="fa fa-edit"></i></button>
+                          <button *ngIf="usuarios.idRol === '1'" class="btn btn-danger btn-rounded dim mt-2" (click)="eliminarRegistro(element)"><i class="fa fa-trash"></i></button>
+                        </td>
+                      </ng-container>
+
+                      <!-- More Column -->
+                      <ng-container matColumnDef="more">
+                          <th mat-header-cell *matHeaderCellDef></th>
+                          <td mat-cell *matCellDef="let element; let row" (click)="clickExpanded(row)">
+                              <span [@fabToggler]="element == expandedMore ? 'active3' : 'inactive'" class="material-icons" style="cursor: pointer;">expand_more</span>
+                          </td>
+                      </ng-container>
+
+                      <!-- More Expanded -->
+                      <ng-container matColumnDef="expanded_More">
+                          <td mat-cell *matCellDef="let element" [attr.colspan]="MainDC.length">
+                              <div style="overflow: hidden;" [@detailExpand]="element == expandedMore ? 'expanded' : 'collapsed'">
+                                  <div class="row" style="padding: 10px;">
+                                      <div class="col-lg-12">
+                                          <div class="row" style="padding-left: 15px;">
+                                              <div class="col-sm" style="padding: 10px 0px 0px 0px;">
+                                                  <h6>Lista Detalles:</h6>
+                                                  <hr style="margin-top: 0px; margin-bottom: 10px;">
+                                              </div>
+                                          </div>
+
+                                          <div id="dTableExpanded" class="melevation">
+                                              <table #mtExpanded mat-table [dataSource]="ExpandedDS" class="example-full-width">
+
+                                                <ng-container matColumnDef="codigoBarra">
+                                                  <th mat-header-cell *matHeaderCellDef> Código de Barras </th>
+                                                  <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Código de Barras :'>
+                                                      {{element.codigoBarra}}
+                                                  </td>
+                                                </ng-container>
+                                                  <ng-container matColumnDef="nombre">
+                                                      <th mat-header-cell *matHeaderCellDef> Nombre Producto </th>
+                                                      <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Nombre Producto :'>
+                                                          {{element.nombre}}
+                                                      </td>
+                                                  </ng-container>
+                                                  <ng-container matColumnDef="precio">
+                                                      <th mat-header-cell *matHeaderCellDef> Precio Unitario </th>
+                                                      <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Precio Unitario :'>
+                                                          {{element.precio | number:'0.2-2'}}
+                                                      </td>
+                                                  </ng-container>
+                                                  <ng-container matColumnDef="cantidad">
+                                                      <th mat-header-cell *matHeaderCellDef> Cantidad </th>
+                                                      <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Cantidad :'>
+                                                          {{element.cantidad}}
+                                                      </td>
+                                                  </ng-container>
+                                                  <ng-container matColumnDef="total">
+                                                      <th mat-header-cell *matHeaderCellDef> Total </th>
+                                                      <td mat-cell *matCellDef="let element" style="text-align: right; font-weight: bolder;" class='has_label_on_mobile' data-label='Total :'>
+                                                          {{element.total | number:'0.2-2'}}
+                                                      </td>
+                                                  </ng-container>
+
+                                                  <tr mat-header-row *matHeaderRowDef="ExpandedDC; sticky: true"></tr>
+                                                  <tr mat-row *matRowDef="let element; columns: ExpandedDC;"></tr>
+
+                                              </table>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </td>
+                      </ng-container>
+
+                      <ng-container matColumnDef="noData">
+                          <mat-footer-cell *matFooterCellDef [attr.colspan]="MainDC.length">
+                              No se encuentran registros.
+                          </mat-footer-cell>
+                      </ng-container>
+
+                      <tr mat-header-row *matHeaderRowDef="MainDC; sticky: true"></tr>
+                      <tr mat-row *matRowDef="let row; columns: MainDC;"></tr>
+                      <tr mat-row *matRowDef="let row; columns: ['expanded_More']" [class.example-expanded-row]="expandedMore === row" style="height: 0px; border-top-style: none;"></tr>
+                      <mat-footer-row *matFooterRowDef="['noData']" [hidden]="MainDS && this.MainDS.filteredData.length > 0">
+                      </mat-footer-row>
+                  </table>
+
+              </div>
+              <mat-paginator #pagMain style="display: contents;" [hidePageSize]="false" [pageSize]="10" showFirstLastButtons> </mat-paginator>
+              <!-- <mat-paginator #pagMain [length]="totalRows" [pageIndex]="currentPage" [pageSize]="10" (page)="onPageChange($event)" showFirstLastButtons></mat-paginator> -->
+          </div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>

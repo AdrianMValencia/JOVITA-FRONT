@@ -1,0 +1,148 @@
+<div class="modal-header">
+    <h4 class="modal-title" id="modal-basic-title">Registro de Usuarios</h4>
+    <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+    <div class="row">
+      <form autocomplete="off" novalidate [formGroup]="formGroup" (ngSubmit)="saveUsuarios(formGroup)" class="col-lg-12">
+            <div class="row">
+              <div class="col-lg-4 form-group">
+                <label>Roles</label>
+                <div class="ng-autocomplete">
+                  <ng-autocomplete
+                    [data]="cboRoles"
+                    [searchKeyword]="'nombreRol'"
+                    placeholder=""
+                    [itemTemplate]="itemTemplate"
+                    [notFoundTemplate]="notFoundTemplate"
+                    (selected)="selectEventRol($event)"
+                    formControlName="roles">
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplate let-item>
+                  <a [innerHTML]="item.nombreRol"></a>
+                  </ng-template>
+
+                  <ng-template #notFoundTemplate let-notFound>
+                  <div [innerHTML]="notFound"></div>
+                  </ng-template>
+                </div>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('roles').hasError('required')">Obligatorio</div>
+              </div>
+              <div class="col-lg-4">
+                  <div class="form-group">
+                      <label>Nombres</label>
+                      <input type="text" class="form-control" formControlName="nombre">
+                      <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('nombre').hasError('required')">Obligatorio</div>
+                  </div>
+              </div>
+              <div class="col-lg-4">
+                  <div class="form-group">
+                      <label>Usuario</label>
+                      <input type="text" class="form-control" formControlName="usuario">
+                      <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('usuario').hasError('required')">Obligatorio</div>
+                  </div>
+              </div>
+              <div class="col-lg-4">
+                <label>Contraseña</label>
+                  <div class="input-group">
+                    <input class="form-control" [type]="type" formControlName="password" maxlength="6">
+                    <span class="input-group-append">
+                      <button *ngIf="type === 'password'" type="button" class="btn btn-primary" (click)="mostrar(1)"><i class="fa fa-eye"></i></button>
+                      <button *ngIf="type === 'text'" type="button" class="btn btn-primary" (click)="mostrar(2)"><i class="fa fa-eye-slash"></i></button>
+                    </span>
+                  </div>
+                  <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('password').hasError('required')">Obligatorio</div>
+                  <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('password').hasError('minLength')">La contraseña debe tener al menos 6 caracteres</div>
+              </div>
+              <div class="col-lg-4">
+                <label>Confirmar Contraseña</label>
+                  <div class="input-group">
+                    <input class="form-control" [type]="type2" formControlName="password_confirmation" maxlength="6">
+                    <span class="input-group-append">
+                      <button *ngIf="type2 === 'password'" type="button" class="btn btn-primary" (click)="mostrar2(1)"><i class="fa fa-eye"></i></button>
+                      <button *ngIf="type2 === 'text'" type="button" class="btn btn-primary" (click)="mostrar2(2)"><i class="fa fa-eye-slash"></i></button>
+                    </span>
+                  </div>
+                  <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('password_confirmation').hasError('mustMatch')">Las contraseñas no coinciden</div>
+                  <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('password_confirmation').hasError('minLength')">La contraseña debe tener al menos 6 caracteres</div>
+              </div>
+              <div class="col-lg-4">
+                <div class="form-group">
+                    <label>Correo</label>
+                    <input type="text" class="form-control" formControlName="email">
+                    <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('email').hasError('required')">Obligatorio</div>
+                    <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('email').hasError('email')">Correo inválido</div>
+                </div>
+              </div>
+              <div class="col-lg-4">
+                  <div class="form-group">
+                      <label>Ciudad</label>
+                      <input type="text" class="form-control" formControlName="ciudad">
+                      <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('ciudad').hasError('required')">Obligatorio</div>
+                  </div>
+              </div>
+                <div class="col-lg-4">
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" class="form-control" formControlName="telefono" maxlength="10">
+                        <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('telefono').hasError('maxLength')">Teléfono inválido</div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="form-group">
+                        <label>Celular</label>
+                        <input type="text" class="form-control" formControlName="celular" maxlength="12">
+                        <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('celular').hasError('maxLength')">Celular inválido</div>
+                    </div>
+                </div>
+
+                <div class="col-lg-12">
+                  <div class="form-group">
+                      <label>Dirección</label>
+                      <input type="text" class="form-control" formControlName="direccion">
+                  </div>
+              </div>
+              <div class="col-lg-6">
+                <div class="form-group">
+                  <mat-slide-toggle formControlName="status">Estado</mat-slide-toggle>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-lg-12">
+                <div class="form-group">
+                    <label class="font-weight-bold">Imágen:</label>
+                    <div class="input-group">
+                        <div class="col-lg-12 text-center p-2">
+                            <img *ngIf="!imagenTemp" [src]="sinFoto" style="width: 30%;">
+                            <img *ngIf="imagenTemp" [src]="imagenTemp" style="width: 30%;"><br><br>
+                            <button (click)="eliminarImagen()" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i> Eliminar Imágen</button>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="custom-file">
+                            <input id="inputGroupFile01" (change)="seleccionImagen($event)" type="file" class="custom-file-input" accept="image/*">
+                            <label class="custom-file-label" for="inputGroupFile01">{{textoImagen}}</label>
+                        </div>
+                    </div>
+                </div>
+              </div>
+              <div class="col-lg-6">
+                <div class="form-group">
+                  <button type="submit" class="btn btn-primary dim mr-2"><i class="fa fa-save"></i> GUARDAR</button>
+                  <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-times"></i> CERRAR</button>
+                </div>
+              </div>
+            </div>
+          </form>
+    </div>
+</div>
+
+<div class="modal-footer">
+    <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

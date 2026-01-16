@@ -1,0 +1,137 @@
+<div class="modal-header">
+  <h4 class="modal-title" id="modal-basic-title">Compra Ajustes</h4>
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+    <span class="material-icons">close</span>
+  </button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+  <div class="row">
+    <form autocomplete="off" novalidate [formGroup]="formGroup" (ngSubmit)="saveRegistro(formGroup)" class="col-lg-12">
+          <div class="row">
+            <div class="col-lg-6">
+              <div class="form-group">
+                <label>Punto de Venta</label>
+                <input type="text" name="puntoventa" formControlName="puntoventa" class="form-control" readonly>
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Compras</label>
+              <div class="ng-autocomplete">
+                <ng-autocomplete
+                  [data]="cboCompras"
+                  [searchKeyword]="'numeroTipoDocumento'"
+                  placeholder=""
+                  [itemTemplate]="itemTemplateCompras"
+                  [notFoundTemplate]="notFoundTemplateCompras"
+                  (selected)='selectEventCompras($event)'
+                  formControlName="compras">
+                </ng-autocomplete>
+
+                <ng-template #itemTemplateCompras let-item>
+                <a [innerHTML]="item.nombreTipoDocumento + '-' + item.numeroTipoDocumento"></a>
+                </ng-template>
+
+                <ng-template #notFoundTemplateCompras let-notFound>
+                <div [innerHTML]="notFound"></div>
+                </ng-template>
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('compras').hasError('required')">
+                Obligatorio.
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <label>Productos</label>
+              <div class="ng-autocomplete">
+                <ng-autocomplete
+                  [data]="cboProducto"
+                  [searchKeyword]="'nombre'"
+                  placeholder=""
+                  [itemTemplate]="itemTemplate"
+                  [notFoundTemplate]="notFoundTemplate"
+                  (selected)='selectEvent($event)'
+                  formControlName="productos">
+                </ng-autocomplete>
+
+                <ng-template #itemTemplate let-item>
+                <a [innerHTML]="item.nombre"></a>
+                </ng-template>
+
+                <ng-template #notFoundTemplate let-notFound>
+                <div [innerHTML]="notFound"></div>
+                </ng-template>
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('productos').hasError('required')">
+                Obligatorio.
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <div class="form-group">
+                <label>Producto Ajuste</label>
+                <input type="text" name="nombre" formControlName="nombre" class="form-control" required="" readonly>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('nombre').hasError('required')">
+                  Obligatorio.
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6 form-group">
+              <div class="form-group">
+                <label>Tipo</label>
+                <select class="form-control form-select" name="tipoAjuste" (change)="calcularTotalesSelect($event.target)" formControlName="tipoAjuste">
+                  <option *ngFor="let item of tipos" [value]="item.id">{{item.name}}</option>
+                </select>
+                <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('tipoAjuste').hasError('required')">
+                  Obligatorio.
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="text" (keyup)="calcularTotales($event)" class="form-control" formControlName="cantidadAjuste" required>
+                    <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('cantidadAjuste').hasError('required')">Obligatorio</div>
+                    <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('cantidadAjuste').hasError('pattern')">Caracter Inválido</div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="form-group">
+                    <label>Stock</label>
+                    <input type="text" class="form-control" formControlName="stock" required readonly>
+                    <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('stock').hasError('required')">Obligatorio</div>
+                    <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('stock').hasError('pattern')">Caracter Inválido</div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="form-group">
+                    <label>Nuevo Stock</label>
+                    <input type="text" [ngClass]="{'text-danger font-weight-bolder': formGroup.controls.stockAjuste.value <= 10}" class="form-control" formControlName="stockAjuste" required readonly>
+                    <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('stockAjuste').hasError('required')">Obligatorio</div>
+                    <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('stockAjuste').hasError('pattern')">Caracter Inválido</div>
+                </div>
+            </div>
+            <div class="col-lg-12">
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea class="form-control" formControlName="observaciones"></textarea>
+                </div>
+            </div>
+          </div>
+          <div class="row">
+              <div class="col-lg-6">
+                  <mat-slide-toggle formControlName="status">Estado</mat-slide-toggle>
+              </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-lg-6 form-group">
+                <button type="submit" class="btn btn-primary dim mr-2"><i class="fa fa-save"></i> GUARDAR</button>
+                <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-times"></i> CERRAR</button>
+            </div>
+          </div>
+        </form>
+  </div>
+</div>
+
+<div class="modal-footer">
+    <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

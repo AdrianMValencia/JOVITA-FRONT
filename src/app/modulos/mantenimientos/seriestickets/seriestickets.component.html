@@ -1,0 +1,116 @@
+<div class="row">
+  <div class="col-lg-12">
+      <div class="ibox ">
+          <div class="ibox-title">
+              <h5>Aplicar filtro por :</h5>
+          </div>
+          <div class="ibox-content">
+            <form autocomplete="off" id="fgMain" [formGroup]="fgMain">
+              <div class="row">
+                <div class="col-lg-2">
+                    <label class="font-weight-bolder">Serie:</label>
+                    <input type="text" name="serie" formControlName="serie" class="form-control">
+                </div>
+                <div class="col-lg-4">
+                  <label class="font-weight-bolder">Punto de Venta:</label>
+                  <!-- <div class="ng-autocomplete">
+                    <ng-autocomplete
+                      [data]="cboPuntoVentas"
+                      [searchKeyword]="'nombre'"
+                      placeholder=""
+                      [itemTemplate]="itemTemplate"
+                      [notFoundTemplate]="notFoundTemplate"
+                      formControlName="idPuntoVenta">
+                    </ng-autocomplete>
+
+                    <ng-template #itemTemplate let-item>
+                    <a [innerHTML]="item.nombre"></a>
+                    </ng-template>
+
+                    <ng-template #notFoundTemplate let-notFound>
+                    <div [innerHTML]="notFound"></div>
+                    </ng-template>
+                  </div> -->
+                  <input type="text" name="puntoVenta" formControlName="puntoventa" class="form-control" readonly>
+                </div>
+                <div class="col-lg-2">
+                    <label class="font-weight-bolder">Fecha de Inicio:</label>
+                    <input type="date" name="fechaIni" formControlName="fechaIni" class="form-control">
+                </div>
+                <div class="col-lg-2">
+                    <label class="font-weight-bolder">Fecha Fin:</label>
+                    <input type="date" name="fechaFin" formControlName="fechaFin" class="form-control">
+                </div>
+                <div class="col-lg-2">
+                    <button type="button" (click)="limpiar()" class="btn btn-success dim mt-3"><i class="fa fa-eraser"></i></button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-lg-6 d-flex justify-content-start">
+                  <button (click)="crudSeriesTickets()" type="button" class="btn btn-info dim mr-2"><i class="fa fa-save"></i> Agregar Serie Ticket</button>
+                </div>
+                <div class="col-lg-6 d-flex justify-content-end">
+                    <button type="button" (click)="downloadPDF()" class="btn btn-danger dim mr-2"><i class="fa fa-file-pdf-o"></i> Descargar PDF</button>
+                    <button type="button" (click)="downloadExcel()" class="btn btn-primary dim"><i class="fa fa-file-excel-o"></i> Descargar Excel</button>
+                </div>
+              </div>
+            </form>
+          </div>
+          <hr>
+          <div class="ibox-content">
+            <div class="row">
+              <div class="col-lg-12">
+                  <div id="dTableMain" class="melevation">
+                      <table mat-table [dataSource]="MainDS" style="width: 100%;" multiTemplateDataRows>
+
+                          <ng-container matColumnDef="serie">
+                              <th mat-header-cell *matHeaderCellDef> Serie </th>
+                              <td mat-cell *matCellDef="let element" class='m-card-title' data-label='Serie :'>
+                                  {{element.serie}}
+                              </td>
+                          </ng-container>
+
+                          <ng-container matColumnDef="idPuntoVenta">
+                              <th mat-header-cell *matHeaderCellDef> Punto de Venta </th>
+                              <td mat-cell *matCellDef="let element" class='m-card-title' data-label='Punto de Venta :'>
+                                  {{element.puntoventa.nombre}}
+                              </td>
+                          </ng-container>
+
+                          <ng-container matColumnDef="status">
+                              <th mat-header-cell *matHeaderCellDef class="text-center"> Estado </th>
+                              <td mat-cell *matCellDef="let element" class='m-card-title text-center' data-label='Estado :'>
+                                  <button class="btn btn-success btn-rounded dim mt-2" *ngIf="element.status">ACTIVO</button>
+                                  <button class="btn btn-danger btn-rounded dim mt-2" *ngIf="element.status === 0">INACTIVO</button>
+                              </td>
+                          </ng-container>
+
+                          <ng-container matColumnDef="acciones">
+                              <th mat-header-cell *matHeaderCellDef> Acciones </th>
+                              <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Acciones :'>
+                                <button class="btn btn-info btn-rounded dim mt-2" (click)="viewDetail(element)"><i class="fa fa-edit"></i></button>
+                                <button *ngIf="element.numeracion.length === 0" class="btn btn-danger btn-rounded dim mt-2" (click)="eliminarRegistro(element)"><i class="fa fa-trash"></i></button>
+                              </td>
+                          </ng-container>
+
+                          <ng-container matColumnDef="noData">
+                              <mat-footer-cell *matFooterCellDef [attr.colspan]="MainDC.length">
+                                  No se encuentran registros.
+                              </mat-footer-cell>
+                          </ng-container>
+
+                          <tr mat-header-row *matHeaderRowDef="MainDC; sticky: true"></tr>
+                          <tr mat-row *matRowDef="let row; columns: MainDC;"></tr>
+                          <mat-footer-row *matFooterRowDef="['noData']" [hidden]="MainDS && this.MainDS.filteredData.length > 0">
+                          </mat-footer-row>
+                      </table>
+
+                  </div>
+                  <mat-paginator #pagMain style="display: contents;" [hidePageSize]="false" [pageSize]="10" showFirstLastButtons>
+                  </mat-paginator>
+              </div>
+          </div>
+          </div>
+      </div>
+  </div>
+</div>

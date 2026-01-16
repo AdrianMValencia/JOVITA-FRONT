@@ -1,0 +1,103 @@
+<div class="modal-header">
+  <h4 class="modal-title" id="modal-basic-title">Pagos a Realizar Detalles</h4>
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+<div class="row">
+  <form autocomplete="off" novalidate [formGroup]="formGroup" (ngSubmit)="saveRegistro(formGroup)" class="col-lg-12">
+      <div class="row">
+        <div class="col-lg-6 form-group">
+          <div class="form-group">
+            <label>Fecha de Vencimiento</label>
+            <input type="date" name="fechaVencimiento" formControlName="fechaVencimiento" class="form-control" [min]="getMinFechaVencimiento()">
+            <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('fechaVencimiento').invalid && (formGroup.get('fechaVencimiento').dirty || formGroup.get('fechaVencimiento').touched)">
+              Obligatorio.
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 form-group">
+          <div class="form-group">
+            <label>Cantidad</label>
+            <input type="text" name="cantidad" formControlName="cantidad" (keyup)="calcularCantidadTotal($event.target)" class="form-control">
+            <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('cantidad').invalid && (formGroup.get('cantidad').dirty || formGroup.get('cantidad').touched)">
+              Obligatorio.
+            </div>
+            <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('cantidad').hasError('pattern')">
+                Cantidad inválido
+              </div>
+          </div>
+        </div>
+        <div class="col-lg-4 form-group">
+          <div class="form-group">
+            <label>Monto</label>
+            <input type="text" name="monto" formControlName="monto" class="form-control" (keyup)="calcularMontoTotal($event.target)" (input)="funcionesService.soloAceptarNumerosPuntoDecimal($event.target)">
+            <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('monto').invalid && (formGroup.get('monto').dirty || formGroup.get('monto').touched)">
+              Obligatorio.
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4 form-group">
+          <div class="form-group">
+            <label>Detalles de Pago</label>
+            <input type="text" name="interes" formControlName="interes" class="form-control">
+          </div>
+        </div>
+        <div class="col-lg-4 form-group">
+          <div class="form-group">
+            <label>Total</label>
+            <input type="text" name="total" formControlName="total" class="form-control" (input)="funcionesService.soloAceptarNumerosPuntoDecimal($event.target)" readonly>
+            <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('total').invalid && (formGroup.get('total').dirty || formGroup.get('total').touched)">
+              Obligatorio.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row" *ngIf="getPagoPersonal()">
+        <div class="col-lg-6">
+          <div class="form-group">
+            <label>Usuarios</label>
+            <select name="idUsuario" formControlName="idUsuario" class="form-control form-select">
+              <option value="">Seleccione un Usuario</option>
+              <option *ngFor="let usuario of cboVendedores" [value]="usuario.id">{{usuario.nombre}}</option>
+            </select>
+            <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('idUsuario').invalid && (formGroup.get('idUsuario').dirty || formGroup.get('idUsuario').touched)">
+              Obligatorio.
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="form-group">
+            <label>Modalidad</label>
+            <select name="idModalidad" formControlName="idModalidad" class="form-control form-select">
+              <option value="">Seleccione un Modalidad</option>
+              <option *ngFor="let item of cboTipo" [value]="item.id">{{item.titulo}}</option>
+            </select>
+            <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('idModalidad').invalid && (formGroup.get('idModalidad').dirty || formGroup.get('idModalidad').touched)">
+              Obligatorio.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+          <div class="col-lg-6">
+              <mat-slide-toggle formControlName="status">Estado</mat-slide-toggle>
+          </div>
+      </div>
+      <div class="row mt-3">
+        <div class="col-lg-6 form-group">
+            <button type="submit" class="btn btn-primary dim mr-2"><i class="fa fa-save"></i> GUARDAR</button>
+            <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-times"></i> CERRAR</button>
+        </div>
+      </div>
+  </form>
+</div>
+</div>
+
+<div class="modal-footer">
+  <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

@@ -1,0 +1,31 @@
+export class PedidoWeb {
+  constructor(
+    public id?: number,
+    public user_id?: number,
+    public email?: string,
+    public telefono?: string,
+    public codigo_pais?: string,
+    public nombre?: string,
+    public apellido?: string,
+    public fecha_nacimiento?: string,
+    public direccion?: string,
+    public tipo_entrega?: string,
+    public punto_venta_id?: number,
+    public punto_venta_direccion?: string,
+    public metodo_pago?: string,
+    public tipo_comprobante?: string,
+    public tipo_documento?: string,
+    public numero_documento?: string,
+    public razon_social?: string,
+    public direccion_fiscal?: string,
+    public propina?: string,
+    public subtotal?: string,
+    public envio?: string,
+    public total?: string,
+    public estado?: string,
+    public created_at?: string,
+    public updated_at?: string,
+    public user?: any,
+    public detalles?: any[]
+  ) {}
+}

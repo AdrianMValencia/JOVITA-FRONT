@@ -1,0 +1,28 @@
+<div class="modal-header">
+    <h4 class="modal-title" id="modal-basic-title">RECIBO N° {{recibos.series}}-{{recibos.numeracion}}</h4>
+    <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+    <div class="row">
+        <div class="col-lg-12">
+            <mat-accordion>
+                <mat-expansion-panel [expanded]="true">
+                    <div class="row">
+                        <div class="col-lg-12" *ngIf="recibos.id">
+                            <div id="viewer"></div>
+                        </div>
+                    </div>
+
+                </mat-expansion-panel>
+            </mat-accordion>
+        </div>
+    </div>
+</div>
+
+<div class="modal-footer">
+    <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>

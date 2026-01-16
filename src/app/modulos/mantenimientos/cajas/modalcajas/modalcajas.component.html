@@ -1,0 +1,72 @@
+<div class="modal-header">
+  <h4 class="modal-title" id="modal-basic-title">{{ titulo }}</h4>
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss()">
+<span class="material-icons">close</span>
+</button>
+</div>
+
+<!-- Body -->
+<div class="modal-body">
+  <div class="row">
+      <form autocomplete="off" novalidate [formGroup]="formGroup" (ngSubmit)="crudRegistros(formGroup)" class="col-lg-12">
+          <div class="row">
+            <div class="col-lg-4 form-group">
+              <div class="form-group">
+                <label>Punto de Venta</label>
+                <input type="text" name="puntoVenta" formControlName="puntoVenta" class="form-control" readonly>
+              </div>
+            </div>
+            <div class="col-lg-4 form-group">
+              <label>Series Tickets</label>
+              <div class="ng-autocomplete">
+                <ng-autocomplete
+                  [data]="cboSeriesTickets"
+                  [searchKeyword]="'serie'"
+                  [itemTemplate]="itemTemplateSeries"
+                  [notFoundTemplate]="notFoundTemplateSeries"
+                  (selected)='selectEvent($event)'
+                  formControlName="series">
+                </ng-autocomplete>
+
+                <ng-template #itemTemplateSeries let-item>
+                <a [innerHTML]="item.serie"></a>
+                </ng-template>
+
+                <ng-template #notFoundTemplateSeries let-notFound>
+                <div [innerHTML]="notFound"></div>
+                </ng-template>
+              </div>
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('idSerieTicket').invalid && (formGroup.get('idSerieTicket').dirty || formGroup.get('idSerieTicket').touched)">
+                Obligatorio.
+              </div>
+            </div>
+            <div class="col-lg-4 form-group">
+              <label>Nombre</label>
+              <input type="text" formControlName="nombre" class="form-control">
+              <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('nombre').invalid && (formGroup.get('nombre').dirty || formGroup.get('nombre').touched)">
+                Obligatorio.
+              </div>
+            </div>
+              <div class="col-lg-12 form-group">
+                <label>Observaciones</label>
+                <input type="text" class="form-control" formControlName="observaciones">
+            </div>
+          </div>
+          <div class="row">
+              <div class="col-lg-6 form-group">
+                  <mat-slide-toggle formControlName="status">Estado</mat-slide-toggle>
+              </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-lg-6 form-group">
+                <button type="submit" class="btn btn-primary dim mr-2"><i class="fa fa-save"></i> GUARDAR</button>
+                <button type="button" class="btn btn-default dim" (click)="activeModal.dismiss()"><i class="fa fa-save"></i> CERRAR</button>
+            </div>
+          </div>
+      </form>
+  </div>
+</div>
+
+<div class="modal-footer">
+  <mat-progress-bar *ngIf="progressBar" color="accent" mode="indeterminate"></mat-progress-bar>
+</div>
