@@ -1,6 +1,6 @@
 import { Component, OnInit, Type, ViewChild } from '@angular/core';
 import { FormGroup, FormBuilder } from '@angular/forms';
-import { MatPaginator } from '@angular/material/paginator';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
 
 import { NgbModalOptions, NgbModal } from '@ng-bootstrap/ng-bootstrap';
@@ -53,6 +53,10 @@ export class ProductosComponent implements OnInit {
 
   MainDS: MatTableDataSource<Productos> = new MatTableDataSource<Productos>();
   @ViewChild('pagMain', {static: true}) pagMain: MatPaginator | any;
+  totalRegistros: number = 0;
+  paginaActual: number = 1;
+  registrosPorPagina: number = 10;
+  ultimaPagina: number = 0;
 
   NgbModalOptions: NgbModalOptions = {
     size: 'xl',
@@ -90,10 +94,6 @@ export class ProductosComponent implements OnInit {
     this.fgMain.valueChanges.subscribe((value: any) => {
       const filter = { ...value, name: value.nombre.trim().toLowerCase() } as string;
       this.MainDS.filter = filter;
-
-      if (this.MainDS.paginator) {
-        this.MainDS.paginator.firstPage();
-      }
     });
   }
 
@@ -198,11 +198,22 @@ export class ProductosComponent implements OnInit {
 
   loadMain() {
     this.funcionesService.showLoading();
-    this.productosService.obtenerProductos(this.puntoVentas.id).subscribe(response => {
+    this.productosService.obtenerProductosPaginado(this.puntoVentas.id, this.paginaActual, this.registrosPorPagina).subscribe(response => {
 
-      this.lista = response.productos;
-      this.MainDS = new MatTableDataSource<Productos  >(response.productos);
-      this.MainDS.paginator = this.pagMain;
+      this.lista = response.productos || [];
+      this.MainDS = new MatTableDataSource<Productos>(this.lista);
+
+      this.totalRegistros = response.pagination?.total || this.lista.length;
+      this.paginaActual = response.pagination?.page || this.paginaActual;
+      this.registrosPorPagina = response.pagination?.perPage || this.registrosPorPagina;
+      this.ultimaPagina = response.pagination?.lastPage || 0;
+
+      if (this.pagMain) {
+        this.pagMain.length = this.totalRegistros;
+        this.pagMain.pageIndex = this.paginaActual - 1;
+        this.pagMain.pageSize = this.registrosPorPagina;
+      }
+
       this.funcionesService.hideLoading();
 
       this.MainDS.filterPredicate = function(data: Productos, filter: string): boolean {
@@ -216,11 +227,19 @@ export class ProductosComponent implements OnInit {
         const d = !filter.fechaIni ||  new Date(this.funcionesService.formatearFecha4(data.created_at)) >= new Date(filter.fechaIni) && new Date(this.funcionesService.formatearFecha4(data.created_at)) <= new Date(filter.fechaFin);
         return a && b && c && d;
       }) as (PeriodicElement: any, string: any) => boolean;
+
+      this.MainDS.filter = this.fgMain.value;
     }, error => {
       console.log(error);
       this.funcionesService.hideLoading();
       this.progressBar = false;
     });
+  }
+
+  onPageChange(event: PageEvent) {
+    this.paginaActual = event.pageIndex + 1;
+    this.registrosPorPagina = event.pageSize;
+    this.loadMain();
   }
 
   eliminarRegistro(element: Productos){

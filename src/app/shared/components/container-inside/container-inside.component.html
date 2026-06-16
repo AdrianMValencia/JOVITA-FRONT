@@ -3,7 +3,8 @@
     <div id="page-wrapper" class="gray-bg">
       <app-sidebar></app-sidebar>
       <app-breadcrumbs></app-breadcrumbs>
-      <div class="wrapper wrapper-content animated fadeInRight">
+      <!-- animation removed; transform on ancestor can mis-position material overlays -->
+      <div class="wrapper wrapper-content">
         <router-outlet></router-outlet>
       </div>
       <app-footer></app-footer>

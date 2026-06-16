@@ -30,6 +30,33 @@ export class Recibos{
       public status?: boolean | any,
       public detalles?: RecibosDetalles[] | any,
       public medioPagos?: RecibosMedioPago | any,
-      public created_at?: string | any
+      public created_at?: string | any,
+      public emitirEfact?: boolean | any
   ){}
+
+  /**
+   * Campos extra que mezcla el API en listados (p. ej. POST buscarPorFecha).
+   * Opcionales; no forman parte del constructor legacy.
+   */
+  /** Ticket interno POS (solo tbl_recibos); no CPE. */
+  ticket_pos?: { serie?: string; numeracion?: string; texto?: string } | null;
+  /** CPE SUNAT; mismo shape que comprobante_electronico. */
+  cpe_sunat?: { serie?: string; numero?: string; comprobante?: string } | null;
+  enumeracion_ticket?: string;
+  comprobante_electronico?: { serie?: string; numero?: string; comprobante?: string } | null;
+  comprobante_emitido?: string | null;
+  /**
+   * Al crear venta: correlativo SUNAT (Boleta/Factura) distinto de series/numeracion del ticket POS.
+   * El backend debe persistirlos aparte (p. ej. efact_comprobante_* vs tbl_recibos).
+   */
+  serieComprobanteEfact?: string;
+  numeroComprobanteEfact?: string;
+  efact_ticket?: string | null;
+  efact_estado?: string;
+  estado_ose?: string;
+  estado_sunat?: string;
+  pendiente_emision?: boolean;
+  puede_descargar?: boolean;
+  es_error_critico?: boolean;
+  cpe_cerrado_sunat_ose?: boolean | null;
 }

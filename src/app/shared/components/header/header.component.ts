@@ -54,28 +54,45 @@ export class HeaderComponent implements OnInit {
 
     inspinia();
 
-    const json: any | any = localStorage.getItem('usuario');
-    let usuario: Usuarios | any = JSON.parse(json);
-    let id = usuario.id;
-    this.lMenuName = usuario.nombre;
-    let menu: string | any = localStorage.getItem("menu");
-    this.lMenuList = JSON.parse(menu);
-    this.lMenuList.forEach(element =>{
-      element['listado'] = [];
-    });
-    let subMenu: string | any = localStorage.getItem("subMenu");
-    this.lSubMenuList = JSON.parse(subMenu);
+    // try to read stored values, fall back to service in case storage is empty or invalid
+    const json: any = localStorage.getItem('usuario');
+    let usuario: Usuarios | any = JSON.parse(json || '{}');
+    let id = usuario?.id || 0;
+    this.lMenuName = usuario?.nombre || '';
 
-    let permisos: string | any = localStorage.getItem('permisos');
-    this.permisos = JSON.parse(permisos);
+    // safe parsers
+    const parseJson = (key: string) => {
+      try {
+        const str = localStorage.getItem(key);
+        if (!str) { return []; }
+        const parsed = JSON.parse(str);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.warn(`header: failed to parse ${key}`, e);
+        return [];
+      }
+    };
 
-    this.permisos = this.permisos.filter(x => parseInt(x.idUsuario) === parseInt(id));
-    this.permisos.forEach(result => {
+    this.lMenuList = parseJson('menu');
+    if (!this.lMenuList.length && Array.isArray(this.userService.menu)) {
+      // use service state if storage is empty (happens during HMR or race)
+      this.lMenuList = this.userService.menu;
+    }
+    this.lMenuList.forEach(el => el['listado'] = []);
+
+    this.lSubMenuList = parseJson('subMenu');
+    this.permisos = parseJson('permisos');
+
+    // filter permissions belonging to current user
+    this.permisos = this.permisos.filter((x: any) => parseInt(x.idUsuario) === parseInt(id));
+
+    // build menu->submenu relationships
+    this.permisos.forEach((result: any) => {
       this.lMenuList.forEach((element: Menu) => {
         this.lSubMenuList.forEach(datos => {
-          if(element.id === parseInt(datos.idModulo)){
-            if(datos.id === parseInt(result.idSubModulo)){
-              if(parseInt(result.completed) === 1){
+          if (element.id === parseInt(datos.idModulo)) {
+            if (datos.id === parseInt(result.idSubModulo)) {
+              if (parseInt(result.completed) === 1) {
                 element.listado.push({
                   idModulo: datos.idModulo,
                   ruta: datos.ruta,
@@ -89,6 +106,67 @@ export class HeaderComponent implements OnInit {
         element.listado.sort(this.SortByName);
       });
     });
+
+    const itemsContabilidadExtra = [
+      {
+        idModulo: 990100,
+        nombre: 'Inventario valorizado SUNAT',
+        ruta: 'contabilidad/inventario-valorizado-sunat',
+        orden: 3
+      },
+      {
+        idModulo: 990100,
+        nombre: 'Consulta de Stock',
+        ruta: 'almacen/stock-tiendas',
+        orden: 4
+      },
+      {
+        idModulo: 990100,
+        nombre: 'Kardex General',
+        ruta: 'contabilidad/kardex-general',
+        orden: 5
+      }
+    ];
+
+    const inyectarItemsContabilidad = (listado: any[]): void => {
+      itemsContabilidadExtra.forEach((item) => {
+        if (!listado.some((s) => s.ruta === item.ruta)) {
+          listado.push(item);
+        }
+      });
+      listado.sort(this.SortByName);
+    };
+
+    const yaContabilidad = this.lMenuList.some(
+      (m: any) => String(m?.nombre || '').toLowerCase().trim() === 'contabilidad'
+    );
+    if (!yaContabilidad) {
+      this.lMenuList.push({
+        id: 990100,
+        nombre: 'Contabilidad',
+        orden: 950,
+        listado: [
+          { idModulo: 990100, nombre: 'Reporte de Compras', ruta: 'contabilidad/rce-compras', orden: 1 },
+          { idModulo: 990100, nombre: 'Reporte de Ventas', ruta: 'contabilidad/rce-ventas', orden: 2 },
+          ...itemsContabilidadExtra
+        ]
+      } as Menu);
+    } else {
+      const contabilidad = this.lMenuList.find(
+        (m: any) => String(m?.nombre || '').toLowerCase().trim() === 'contabilidad'
+      );
+      if (contabilidad?.listado) {
+        inyectarItemsContabilidad(contabilidad.listado);
+      }
+    }
+
+    if (!this.lMenuList.length) {
+      console.warn('header: no menu items after filtering', {
+        menu: this.lMenuList,
+        subMenu: this.lSubMenuList,
+        permisos: this.permisos
+      });
+    }
 
     this.spinner.hide();
   }

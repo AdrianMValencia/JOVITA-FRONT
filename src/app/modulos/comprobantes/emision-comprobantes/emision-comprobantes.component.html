@@ -1,0 +1,171 @@
+<div class="row">
+  <div class="col-lg-12">
+    <div class="ibox">
+      <div class="ibox-title">
+        <h5>Emisión de comprobante</h5>
+      </div>
+      <div class="ibox-content">
+        <form [formGroup]="filterForm">
+          <div class="row">
+            <div class="col-lg-3">
+              <label>Tipo de Comprobante</label>
+              <select formControlName="tipo" class="form-control">
+                <option value="">Seleccione</option>
+                <option *ngFor="let t of tipos" [value]="t.documento">{{t.documento}}</option>
+              </select>
+            </div>
+            <div class="col-lg-3">
+              <label>Serie</label>
+              <select formControlName="serie" class="form-control" (change)="onSerieChange()">
+                <option value="">--</option>
+                <option *ngFor="let s of seriesList" [value]="s.serie">{{s.serie}}</option>
+              </select>
+            </div>
+            <div class="col-lg-3">
+              <label>Número</label>
+              <input type="text" formControlName="numero" class="form-control" readonly>
+            </div>
+            <div class="col-lg-3">
+              <label>Fecha de Emisión</label>
+              <input type="date" formControlName="fecha" class="form-control">
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-lg-3">
+              <label>Tipo de documento <span class="text-danger">*</span></label>
+              <select formControlName="tipoDocumento" class="form-control" required>
+                <option value="">-- Seleccione --</option>
+                <option *ngFor="let d of tiposDocumento" [value]="d.codigo">{{d.tipo}}</option>
+              </select>
+            </div>
+            <div class="col-lg-3">
+              <label>Número de documento</label>
+              <input type="text"
+                     formControlName="numeroDocumento"
+                     class="form-control"
+                     [attr.maxlength]="maxLengthDocumento || null"
+                     inputmode="numeric"
+                     pattern="\d*"
+                     (keydown.enter)="$event.preventDefault(); $event.stopPropagation(); consultarSunat()">
+            </div>
+            <div class="col-lg-6">
+              <label>Cliente</label>
+              <input type="text" formControlName="cliente" class="form-control" readonly>
+              <div *ngIf="filterForm.get('cliente')?.invalid && filterForm.get('cliente')?.touched" class="text-danger small">
+                El cliente es obligatorio.
+              </div>
+            </div>
+            <div class="col-lg-12">
+              <label>Dirección</label>
+              <input type="text" formControlName="direccion" class="form-control">
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-lg-3">
+              <label>Celular</label>
+              <input type="text" formControlName="celular" class="form-control" maxlength="9">
+              <div *ngIf="filterForm.get('celular')?.invalid && filterForm.get('celular')?.touched" class="text-danger small">
+                Celular debe tener 9 dígitos numéricos.
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <label>Correo</label>
+              <input type="email" formControlName="correo" class="form-control">
+              <div *ngIf="filterForm.get('correo')?.invalid && filterForm.get('correo')?.touched" class="text-danger small">
+                Ingrese un correo válido.
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <label>Moneda</label>
+              <select formControlName="codigo" class="form-control">
+                <option value="">--</option>
+                <option *ngFor="let m of cboMonedas" [value]="m.id">{{m.moneda}}</option>
+              </select>
+            </div>
+            <div class="col-lg-3">
+              <label>Tipo de cambio</label>
+              <input type="number" formControlName="tipoCambio" class="form-control" step="0.0001">
+              <input type="hidden" formControlName="idTipoCambio">
+            </div>
+          </div>
+          <!-- campos añadidos según cambios en la base de datos -->
+        
+        <hr>
+        <h6>Detalle</h6>
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 45%;">Producto</th>
+              <th style="width: 12%;">Cantidad</th>
+              <th style="width: 16%;">Precio</th>
+              <th style="width: 17%;">Sub total</th>
+              <th style="width: 10%;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let line of detalle; let i = index">
+              <td style="width: 45%;">
+                <div class="ng-autocomplete" style="min-width: 100%;">
+                  <ng-autocomplete 
+                    [data]="productos" 
+                    [searchKeyword]="'nombre'" 
+                    placeholder="Buscar producto..." 
+                    [minQueryLength]="1"
+                    (inputChanged)="onInputChanged(line, $event)" 
+                    (selected)="selectProducto(line, $event)"
+                    [notFoundText]="'No se encontró el producto'"
+                    [itemTemplate]="itemTemplateProducto"
+                  >
+                  </ng-autocomplete>
+
+                  <ng-template #itemTemplateProducto let-item>
+                    <a>{{item.nombre}} - {{item.codigoBarra || item.codigoAntiguo || 'Sin código'}}</a>
+                  </ng-template>
+                </div>
+                <input type="hidden" [(ngModel)]="line.idProducto" [ngModelOptions]="{standalone: true}">
+              </td>
+              <td style="width: 12%;">
+                <input type="number" [(ngModel)]="line.cantidad" [ngModelOptions]="{standalone: true}" (input)="calcularSubtotalLinea(line)" min="0" class="form-control" style="padding:0.35rem; font-size:0.875rem;">
+              </td>
+              <td style="width: 16%;">
+                <input type="number" [(ngModel)]="line.precio" [ngModelOptions]="{standalone: true}" (input)="calcularSubtotalLinea(line)" min="0" step="0.01" class="form-control" style="padding:0.35rem; font-size:0.875rem;">
+              </td>
+              <td style="width: 17%;">
+                <input type="number" [value]="(line.cantidad || 0) * (line.precio || 0)" readonly class="form-control" style="padding:0.35rem; font-size:0.875rem;">
+              </td>
+              <td>
+                <button type="button" (click)="quitarLinea(i)" class="btn btn-danger btn-sm" title="Eliminar línea">
+                  <i class="fa fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <button type="button" (click)="agregarLinea()" class="btn btn-secondary btn-sm">Agregar línea</button>
+        <!-- totales listados verticalmente -->
+        <div class="d-flex flex-column align-items-end mt-3">
+          <div class="mb-2" style="width: 240px;">
+            <label>Sub total</label>
+            <input type="number" formControlName="subTotal" class="form-control" step="0.01" [disabled]="true">
+          </div>
+          <div class="mb-2" style="width: 240px;">
+            <label>IGV</label>
+            <input type="number" formControlName="igv" class="form-control" step="0.01" [disabled]="true">
+          </div>
+          <div style="width: 240px;">
+            <label>Total</label>
+            <input type="number" formControlName="total" class="form-control" step="0.01" [disabled]="true">
+          </div>
+        </div>
+        <hr>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <button (click)="guardar()" class="btn btn-primary" [disabled]="emitiendo">
+            <span *ngIf="emitiendo" class="spinner-border spinner-border-sm me-1"></span>
+            {{ emitiendo ? 'Emitiendo...' : 'Emitir comprobante (OSE eFact)' }}
+          </button>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

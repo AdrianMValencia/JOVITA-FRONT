@@ -48,7 +48,7 @@
           </div>
       </div>
       <div class="col-lg-4">
-        <button class="btn btn-outline btn-primary btn-sm btn-block dim" [disabled]="progressBar" (click)="crearDocumentoPDF()" type="button"><i class="fa fa-print"></i> Cobrar e Imprimir Ticket</button>
+        <button class="btn btn-outline btn-primary btn-sm btn-block dim" [disabled]="progressBar" (click)="crearDocumentoPDF()" type="button" title="Tras cobrar se muestra el PDF del comprobante electrónico (eFact) si está disponible"><i class="fa fa-print"></i> Cobrar e imprimir comprobante (eFact)</button>
         <button class="btn btn-outline btn-primary btn-sm btn-block dim" [disabled]="progressBar" (click)="crearDocumento()" type="button"><i class="fa fa-print"></i> Cobrar solo registrando la venta</button>
         <button class="btn btn-outline btn-danger btn-sm btn-block dim" (click)="activeModal.dismiss()" type="button"><i class="fa fa-times"></i>ESC - CERRAR</button>
         <div class="text-center font-weight-bolder">Total de Articulos: <br><span style="font-size: 1.5rem;">{{ cantidad }}</span></div>

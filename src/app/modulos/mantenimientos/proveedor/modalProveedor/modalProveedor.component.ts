@@ -11,11 +11,12 @@ import { PuntosVenta } from '../../puntosventa/model/puntosVenta';
 import { TipoDoiService } from 'src/app/shared/services/tipoDoi/tipoDoi.service';
 import { TipoDoi } from 'src/app/shared/services/tipoDoi/tipoDoi';
 import { SubirArchivoService } from 'src/app/shared/subirArchivo/subir-archivo.service';
+import { ClientesService } from '../../clientes/Service/clientes.service';
 
 @Component({
   selector: 'app-modalProveedor',
   templateUrl: './modalProveedor.component.html',
-  providers: [ ProveedorService, PuntosventaService, UbigeoService, TipoDoiService, SubirArchivoService ]
+  providers: [ ProveedorService, PuntosventaService, UbigeoService, TipoDoiService, SubirArchivoService, ClientesService ]
 })
 export class ModalProveedorComponent implements OnInit {
 
@@ -37,6 +38,7 @@ export class ModalProveedorComponent implements OnInit {
   cboPuntoVentas: PuntosVenta[] = [];
   cboUbigeo: Ubigeo[] = [];
   cboTipoDoi: TipoDoi[] = [];
+  readonlyCamposConsulta: boolean = false;
 
   textoImagen: string = 'Seleccione una imágen';
   sinFoto:string = 'assets/img/sinFoto.png';
@@ -48,6 +50,7 @@ export class ModalProveedorComponent implements OnInit {
     public ubigeoService: UbigeoService,
     public puntosventaService: PuntosventaService,
     public tipoDoiService: TipoDoiService,
+    public clientesService: ClientesService,
     public funcionesService: FuncionesService,
     private fb: FormBuilder,
     public activeModal: NgbActiveModal,
@@ -275,6 +278,74 @@ export class ModalProveedorComponent implements OnInit {
     let reader = new FileReader();
     let urlImagenTemp = reader.readAsDataURL(archivo);
     reader.onloadend = ()=> this.imagenTemp = reader.result;
+  }
+
+  consultaSUNAT(): any {
+
+    this.funcionesService.showLoading();
+    this.progressBar = true;
+
+    if(this.formGroup.get('numeroDoi').value.length === 0){
+      this.funcionesService.showError('Ingrese su número de documento');
+      this.funcionesService.hideLoading();
+      this.progressBar = false;
+      return;
+    }
+
+    this.clientesService.consultasSUNAT(this.formGroup.get('numeroDoi').value, this.formGroup.get('idPuntoVenta').value).subscribe((response: any) => {
+      if(response.status === 200){
+        const cliente = response.clientes;
+        const numeroDocumento = String(cliente.numeroDoi || this.formGroup.get('numeroDoi').value || '');
+        let tipoDoiEncontrado: TipoDoi | undefined;
+
+        // Regla principal: mapear por longitud de documento (evita inversión DNI/RUC)
+        if (numeroDocumento.length === 8) {
+          tipoDoiEncontrado = this.cboTipoDoi.find((item: TipoDoi) => String(item.codigo) === '1'); // DNI
+        } else if (numeroDocumento.length === 11) {
+          tipoDoiEncontrado = this.cboTipoDoi.find((item: TipoDoi) => String(item.codigo) === '6'); // RUC
+        }
+
+        // Fallback: usar id/código devuelto por API
+        if (!tipoDoiEncontrado) {
+          tipoDoiEncontrado = this.cboTipoDoi.find((item: TipoDoi) =>
+            String(item.codigo) === String(cliente.idTipoDoi) || String(item.id) === String(cliente.idTipoDoi)
+          );
+        }
+
+        this.formGroup.get('numeroDoi').setValue(cliente.numeroDoi || this.formGroup.get('numeroDoi').value);
+        this.formGroup.get('nombre').setValue(cliente.nombre || cliente.razonsocial || '');
+        this.formGroup.get('razonsocial').setValue(cliente.razonsocial || cliente.nombre || '');
+        this.formGroup.get('direccion').setValue(cliente.direccion || '');
+        this.formGroup.get('pais').setValue(cliente.pais || 'Perú');
+
+        if (cliente.idUbigeo) {
+          this.ubigeos.id = cliente.idUbigeo;
+          this.ubigeos.idUbigeo = cliente.codigo;
+          this.ubigeos.ubigeo = cliente.ubigeo;
+          this.formGroup.get('ubigeos').setValue(this.ubigeos);
+          this.selectEventUbigeo(this.ubigeos);
+        }
+
+        if (tipoDoiEncontrado) {
+          this.formGroup.get('tipodoi').setValue(tipoDoiEncontrado);
+          this.selectEventTipoDoi(tipoDoiEncontrado);
+        }
+
+        this.readonlyCamposConsulta = true;
+        this.funcionesService.hideLoading();
+        this.progressBar = false;
+
+      }else{
+        this.readonlyCamposConsulta = false;
+        this.funcionesService.hideLoading();
+        this.progressBar = false;
+      }
+    }, error => {
+      this.readonlyCamposConsulta = false;
+      this.funcionesService.showError(error?.error?.message || 'No se pudo consultar el documento');
+      this.funcionesService.hideLoading();
+      this.progressBar = false;
+    });
   }
 
 }

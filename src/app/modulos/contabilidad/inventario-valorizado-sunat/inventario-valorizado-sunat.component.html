@@ -1,0 +1,280 @@
+<div class="container-fluid py-3">
+  <div class="ibox">
+    <div class="ibox-title">
+      <h5>Inventario valorizado SUNAT</h5>
+    </div>
+    <div class="ibox-content">
+      <form [formGroup]="fg" class="inv-filtros mb-3">
+        <!-- Fila 1: periodo, punto de venta y acciones -->
+        <div class="row inv-filtros-row align-items-end g-2">
+          <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+            <label class="form-label">Fecha inicio</label>
+            <input type="date" class="form-control" formControlName="fechaInicio" />
+          </div>
+          <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+            <label class="form-label">Fecha fin</label>
+            <input type="date" class="form-control" formControlName="fechaFin" />
+          </div>
+          <div class="col-12 col-sm-8 col-md-6 col-lg-4">
+            <label class="form-label">Punto de venta <span class="text-danger">*</span></label>
+            <select class="form-control" formControlName="idPuntoVenta" (change)="onPuntoVentaChange()">
+              <option value="">Seleccione…</option>
+              <option *ngFor="let pv of puntosVenta" [value]="pv.id">{{ pv.nombre }}</option>
+            </select>
+          </div>
+          <div class="col-12 col-lg-4 inv-filtros-acciones">
+            <button type="button" class="btn btn-outline-secondary" (click)="refrescarFiltros()" [disabled]="loading">
+              Refrescar filtros
+            </button>
+            <button type="button" class="btn btn-primary" (click)="consultar()" [disabled]="loading">
+              <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+              Consultar
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-success"
+              (click)="descargarExcel()"
+              [disabled]="descargandoExcel"
+            >
+              <span *ngIf="descargandoExcel" class="spinner-border spinner-border-sm me-1"></span>
+              Excel
+            </button>
+          </div>
+        </div>
+
+        <!-- Fila 2: filtros de producto -->
+        <div class="row inv-filtros-row align-items-end g-2">
+          <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label">Código (parcial)</label>
+            <input
+              type="text"
+              class="form-control"
+              formControlName="codigo"
+              (input)="onFiltroProductoChange()"
+              placeholder="Ej. 77012"
+            />
+          </div>
+          <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label">Nombre (parcial)</label>
+            <input
+              type="text"
+              class="form-control"
+              formControlName="nombre"
+              (input)="onFiltroProductoChange()"
+              placeholder="Ej. ARROZ"
+            />
+          </div>
+          <div class="col-12 col-sm-6 col-md-4 col-lg-2 d-flex align-items-end pb-1">
+            <mat-checkbox formControlName="incluirSaldoInicial" color="primary">
+              Incluir saldo inicial
+            </mat-checkbox>
+          </div>
+          <div class="col-12 col-md-8 col-lg-4">
+            <label class="form-label">Código de barras (exacto)</label>
+            <div class="input-group">
+              <input
+                type="text"
+                class="form-control"
+                formControlName="codigoBarra"
+                (input)="onFiltroProductoChange()"
+                (keyup)="onCodigoBarraKeyup($event)"
+                placeholder="Coincidencia exacta"
+              />
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                (click)="resolverProducto()"
+                [disabled]="buscandoProducto"
+                title="Resolver producto en almacén (envía idProducto)"
+              >
+                <span *ngIf="buscandoProducto" class="spinner-border spinner-border-sm"></span>
+                <span *ngIf="!buscandoProducto">Buscar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ayuda y producto seleccionado -->
+        <div class="inv-filtros-ayuda">
+          <small class="text-muted d-block">
+            Los filtros de producto son opcionales. Sin ellos se listan <strong>todos los productos</strong> por páginas (100 por defecto, máx. 500).
+            Código/nombre (parcial) tiene prioridad. Código de barras exacto sin Buscar consulta por coincidencia exacta;
+            con <strong>Buscar</strong> se usa <code>idProducto</code>.
+            <strong>Excel</strong> exporta el conjunto completo sin paginación.
+          </small>
+          <div *ngIf="productoNombre || idProductoResuelto" class="inv-filtros-producto mt-1">
+            <span *ngIf="productoNombre" class="text-dark">
+              <strong>Producto:</strong> {{ productoNombre }}
+            </span>
+            <span *ngIf="idProductoResuelto && !productoNombre" class="text-success">
+              Producto resuelto (ID {{ idProductoResuelto }})
+            </span>
+          </div>
+        </div>
+      </form>
+
+      <div *ngIf="resumen" class="mb-3 inv-resumen">
+        <p class="mb-1">
+          <strong>{{ resumen.reporte || 'Inventario valorizado SUNAT' }}</strong>
+          <span *ngIf="esModoTodos" class="badge bg-secondary ms-2">
+            {{ paginatorLength }} productos
+          </span>
+        </p>
+        <p class="text-muted small mb-1" *ngIf="resumen.periodo">
+          Periodo: {{ resumen.periodo.fechaInicio }} — {{ resumen.periodo.fechaFin }}
+        </p>
+        <p class="text-muted small mb-2" *ngIf="esModoTodos">
+          <span *ngIf="paginacion">
+            Página {{ paginacion.page }} de {{ paginacion.total_paginas }}
+            ({{ paginacion.productos_en_pagina }} en esta página)
+          </span>
+          · Total movimientos en página: {{ resumen.total_registros ?? 0 }}
+          · Clic en un producto para ver movimientos.
+          · Use <strong>Excel</strong> para exportar todos los productos.
+        </p>
+
+        <ng-container *ngIf="!esModoTodos && resumen.producto">
+          <p class="text-muted small mb-1">
+            {{ resumen.producto.codigoBarra }} — {{ resumen.producto.nombre }}
+            <span *ngIf="resumen.producto.id"> (ID {{ resumen.producto.id }})</span>
+          </p>
+          <p class="text-muted small mb-0" *ngIf="resumen.saldo_inicial || resumen.saldo_final">
+            <span *ngIf="resumen.saldo_inicial">
+              Saldo inicial: cant. {{ formatoSaldo(resumen.saldo_inicial.cantidad) }}
+              · unit. {{ formatoSaldo(resumen.saldo_inicial.costo_unitario) }}
+              · total {{ formatoSaldo(resumen.saldo_inicial.costo_total) }}
+            </span>
+            <span *ngIf="resumen.saldo_final">
+              <span *ngIf="resumen.saldo_inicial"> · </span>
+              Saldo final: cant. {{ formatoSaldo(resumen.saldo_final.cantidad) }}
+              · unit. {{ formatoSaldo(resumen.saldo_final.costo_unitario) }}
+              · total {{ formatoSaldo(resumen.saldo_final.costo_total) }}
+            </span>
+            · Movimientos: {{ resumen.total_registros ?? dataSource.data.length }}
+          </p>
+        </ng-container>
+
+      </div>
+
+      <!-- Listado de todos los productos (modo todos_productos) -->
+      <div *ngIf="esModoTodos && listaProductosDS.data.length" class="mb-4">
+        <h6 class="mb-2">Listado de productos (página actual)</h6>
+        <div class="table-responsive inv-lista-productos-wrap">
+          <table mat-table [dataSource]="listaProductosDS" class="mat-elevation-z1 w-100 inv-lista-productos-table">
+            <ng-container matColumnDef="codigoBarra">
+              <th mat-header-cell *matHeaderCellDef>Código</th>
+              <td mat-cell *matCellDef="let row">{{ row.codigoBarra }}</td>
+            </ng-container>
+            <ng-container matColumnDef="nombre">
+              <th mat-header-cell *matHeaderCellDef>Producto</th>
+              <td mat-cell *matCellDef="let row">{{ row.nombre }}</td>
+            </ng-container>
+            <ng-container matColumnDef="id">
+              <th mat-header-cell *matHeaderCellDef class="text-end">ID</th>
+              <td mat-cell *matCellDef="let row" class="text-end">{{ row.id ?? '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="si_cantidad">
+              <th mat-header-cell *matHeaderCellDef class="text-end inv-th-grupo">Ini. cant.</th>
+              <td mat-cell *matCellDef="let row" class="text-end">{{ formatoSaldo(row.si_cantidad) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="si_costo_unitario">
+              <th mat-header-cell *matHeaderCellDef class="text-end inv-th-grupo">Ini. unit.</th>
+              <td mat-cell *matCellDef="let row" class="text-end">{{ formatoSaldo(row.si_costo_unitario) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="si_costo_total">
+              <th mat-header-cell *matHeaderCellDef class="text-end inv-th-grupo">Ini. total</th>
+              <td mat-cell *matCellDef="let row" class="text-end">{{ formatoSaldo(row.si_costo_total) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="sf_cantidad">
+              <th mat-header-cell *matHeaderCellDef class="text-end inv-th-grupo-final">Fin. cant.</th>
+              <td mat-cell *matCellDef="let row" class="text-end">{{ formatoSaldo(row.sf_cantidad) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="sf_costo_unitario">
+              <th mat-header-cell *matHeaderCellDef class="text-end inv-th-grupo-final">Fin. unit.</th>
+              <td mat-cell *matCellDef="let row" class="text-end">{{ formatoSaldo(row.sf_costo_unitario) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="sf_costo_total">
+              <th mat-header-cell *matHeaderCellDef class="text-end inv-th-grupo-final">Fin. total</th>
+              <td mat-cell *matCellDef="let row" class="text-end">{{ formatoSaldo(row.sf_costo_total) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="movimientos">
+              <th mat-header-cell *matHeaderCellDef class="text-end">Movimientos</th>
+              <td mat-cell *matCellDef="let row" class="text-end">{{ row.movimientos }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="listaProductosColumns; sticky: true"></tr>
+            <tr
+              mat-row
+              *matRowDef="let row; columns: listaProductosColumns"
+              class="inv-fila-producto"
+              [class.inv-fila-producto-activa]="esFilaProductoSeleccionada(row)"
+              (click)="seleccionarProductoDesdeLista(row)"
+            ></tr>
+          </table>
+        </div>
+        <mat-paginator
+          *ngIf="paginacion"
+          [length]="paginatorLength"
+          [pageIndex]="paginatorPageIndex"
+          [pageSize]="perPage"
+          [pageSizeOptions]="perPageOpciones"
+          [disabled]="loading"
+          (page)="onPaginatorChange($event)"
+          showFirstLastButtons
+        ></mat-paginator>
+      </div>
+
+      <div *ngIf="esModoTodos && bloqueActivo" class="mb-3 inv-detalle-producto">
+        <h6 class="mb-2">Detalle de movimientos</h6>
+        <p class="text-muted small mb-1" *ngIf="bloqueActivo.producto">
+          {{ bloqueActivo.producto.codigoBarra }} — {{ bloqueActivo.producto.nombre }}
+          <span *ngIf="bloqueActivo.producto.id"> (ID {{ bloqueActivo.producto.id }})</span>
+        </p>
+        <p class="text-muted small mb-0" *ngIf="bloqueActivo.saldo_inicial || bloqueActivo.saldo_final">
+          <span *ngIf="bloqueActivo.saldo_inicial">
+            Saldo inicial: cant. {{ formatoSaldo(bloqueActivo.saldo_inicial.cantidad) }}
+            · unit. {{ formatoSaldo(bloqueActivo.saldo_inicial.costo_unitario) }}
+            · total {{ formatoSaldo(bloqueActivo.saldo_inicial.costo_total) }}
+          </span>
+          <span *ngIf="bloqueActivo.saldo_final">
+            <span *ngIf="bloqueActivo.saldo_inicial"> · </span>
+            Saldo final: cant. {{ formatoSaldo(bloqueActivo.saldo_final.cantidad) }}
+            · unit. {{ formatoSaldo(bloqueActivo.saldo_final.costo_unitario) }}
+            · total {{ formatoSaldo(bloqueActivo.saldo_final.costo_total) }}
+          </span>
+          · Movimientos: {{ bloqueActivo.total_registros ?? dataSource.data.length }}
+        </p>
+      </div>
+
+      <div class="table-responsive inv-tabla-wrap mb-4" *ngIf="dataSource.data.length">
+        <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 w-100 inv-mat-table">
+          <ng-container matColumnDef="tipo_operacion">
+            <th mat-header-cell *matHeaderCellDef>{{ etiquetaColumna('tipo_operacion') }}</th>
+            <td mat-cell *matCellDef="let row" [ngClass]="claseFila(row.tipo_operacion)">
+              {{ row.tipo_operacion }}
+            </td>
+          </ng-container>
+          <ng-container *ngFor="let k of keysColumnas" [matColumnDef]="k">
+            <th mat-header-cell *matHeaderCellDef class="inv-th-compact">{{ etiquetaColumna(k) }}</th>
+            <td mat-cell *matCellDef="let row" class="inv-td-compact" [ngClass]="claseFila(row.tipo_operacion)">
+              {{ row[k] }}
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+      </div>
+
+      <div *ngIf="resumen && esModoTodos && !bloquesProductos.length" class="alert alert-info">
+        No hay productos con movimientos para el punto de venta y periodo seleccionados.
+      </div>
+
+      <div *ngIf="resumen && esModoTodos && bloqueActivo && !dataSource.data.length" class="alert alert-info">
+        El producto seleccionado no tiene movimientos en el periodo indicado.
+      </div>
+
+      <div *ngIf="resumen && !esModoTodos && !dataSource.data.length" class="alert alert-info">
+        No hay movimientos para el producto y periodo seleccionados.
+      </div>
+    </div>
+  </div>
+</div>

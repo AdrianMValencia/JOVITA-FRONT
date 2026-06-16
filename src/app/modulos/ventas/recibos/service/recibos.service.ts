@@ -1,10 +1,18 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../../../environments/environment.prod';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { Recibos } from '../model/recibos';
 import { tap } from 'rxjs/operators';
 import { RecibosDetalles } from '../model/recibosDetalles';
+
+export interface RecibosNumeracionResponse {
+  serie?: string;
+  idSerie?: number;
+  idNumeracion?: number;
+  siguiente?: number | string;
+  status?: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -62,5 +70,24 @@ export class RecibosService {
 
   buscarPorFecha(page: number = 1, per_page: number = 10, fechaInicio: any, fechaFin: any, idPuntoVenta: number): Observable<any>{
   return this.http.post(environment.BASE_URL + 'buscarPorFecha', {fechaInicio, fechaFin, idPuntoVenta, page, per_page});
+  }
+
+  obtenerSiguienteNumeracion(params: {
+    idPuntoVenta: number;
+    tipoComprobante?: string;
+    serieComprobante?: string;
+    series?: string;
+  }): Observable<RecibosNumeracionResponse> {
+    let qp = new HttpParams().set('idPuntoVenta', String(params.idPuntoVenta));
+    if (params.tipoComprobante) {
+      qp = qp.set('tipoComprobante', params.tipoComprobante);
+    }
+    if (params.serieComprobante) {
+      qp = qp.set('serieComprobante', params.serieComprobante);
+    }
+    if (params.series) {
+      qp = qp.set('series', params.series);
+    }
+    return this.http.get<RecibosNumeracionResponse>(environment.BASE_URL + 'recibos/numeracion', { params: qp });
   }
 }

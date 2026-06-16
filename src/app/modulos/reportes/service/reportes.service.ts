@@ -64,6 +64,10 @@ export class ReportesService {
     return this.http.post(environment.BASE_URL + 'ventasComprasDiarias', {fechaInicio, fechaFin, idPuntoVenta});
   }
 
+  ventasCategoriaDetallado(fechaInicio: any, fechaFin: any, idPuntoVenta: number, page: number = 1, perPage: number = 10): Observable<any>{
+    return this.http.post(this.urlBase + 'ventasCategoriaDetallado', {fechaInicio, fechaFin, idPuntoVenta, page, perPage});
+  }
+
   sobranteVsFaltantes(fechaInicio: any, fechaFin: any, idPuntoVenta: number): Observable<any>{
     return this.http.post(environment.BASE_URL + 'sobranteVsFaltantes', {fechaInicio, fechaFin, idPuntoVenta});
   }

@@ -27,10 +27,12 @@ import { InventariosModule } from 'src/app/modulos/inventarios/inventarios.modul
 import { MantenimientoModule } from 'src/app/modulos/mantenimientos/mantenimiento.module';
 import { PedidosModule } from 'src/app/modulos/pedidos/pedidos.module';
 import { ReportesModule } from 'src/app/modulos/reportes/reportes.module';
+import { ContabilidadModule } from 'src/app/modulos/contabilidad/contabilidad.module';
 import { ValidacionesModule } from 'src/app/modulos/validaciones/validaciones.module';
 import { VentasModule } from 'src/app/modulos/ventas/ventas.module';
 import { AppMaterialModule } from 'src/app/shared/material/app-material.module';
 import { getSpanishPaginatorIntl } from 'src/app/spanish-paginator-intl';
+import { OverlayContainer, FullscreenOverlayContainer } from '@angular/cdk/overlay';
 
 export function momentAdapterFactory() {
   return adapterFactory(moment);
@@ -75,17 +77,22 @@ export function tokenGetter() {
     AlmacenModule,
     ComprasModule,
     ReportesModule,
+    ContabilidadModule,
     UsuariosModule,
     ConfiguracionModule,
     CierrecajaModule,
     InventariosModule,
     PedidosModule,
-    ValidacionesModule
+    ValidacionesModule,
+    CommonModule
   ],
   exports: [
     NgxSpinnerModule
   ],
-  providers: [{ provide: MatPaginatorIntl, useValue: getSpanishPaginatorIntl() }],
+  providers: [
+    { provide: MatPaginatorIntl, useValue: getSpanishPaginatorIntl() },
+    { provide: OverlayContainer, useClass: FullscreenOverlayContainer }
+  ],
   bootstrap: [AppComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })

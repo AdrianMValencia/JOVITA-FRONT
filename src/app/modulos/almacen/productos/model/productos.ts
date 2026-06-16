@@ -30,6 +30,7 @@ export class Productos{
     public imagen?: string | any,
     public slider?: boolean | any,
     public banner?: number | any,
-    public descuento?: string | any
+    public descuento?: string | any,
+    public igv?: boolean | any
   ){}
 }

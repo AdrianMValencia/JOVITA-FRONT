@@ -13,8 +13,13 @@ export class MonedasService {
 
   constructor(private http: HttpClient){}
 
-  cargarMonedas(): Observable<any> {
-    return this.http.get(this.urlBase);
+  cargarMonedas(idPuntoVenta?: number): Observable<any> {
+    let url = this.urlBase;
+    if (idPuntoVenta !== undefined && idPuntoVenta !== null) {
+      // use show route which filters by puntoVenta
+      url += '/' + idPuntoVenta;
+    }
+    return this.http.get(url);
   }
 
   obtenerMonedas(id: number): Observable<any> {

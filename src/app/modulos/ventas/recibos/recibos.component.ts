@@ -15,6 +15,11 @@ import { ModalRecibosPDFComponent } from './modalRecibosPDF/modalRecibosPDF.comp
 import { Recibos } from './model/recibos';
 import { RecibosDetalles } from './model/recibosDetalles';
 import { RecibosService } from './service/recibos.service';
+import {
+  textoComprobanteSunatRecibo,
+  textoNumeracionTicketRecibo,
+  tooltipResumenEfactRecibo
+} from './utils/recibo-listado-ui.util';
 declare const require: any;
 const jsPDF = require('jspdf');
 require('jspdf-autotable');
@@ -67,7 +72,7 @@ export class RecibosComponent implements OnInit {
   cboSeries: SeriesTickets = new SeriesTickets();
 
   // PRINCIPAL
-  MainDC: string[] = ['fechaEmision', 'numeracion', 'vendedor', 'total', 'pdf', 'opciones', 'acciones', 'more'];
+  MainDC: string[] = ['fechaEmision', 'numeracion', 'cpeSunat', 'estadoEfact', 'vendedor', 'total', 'pdf', 'opciones', 'acciones', 'more'];
   MainDS: MatTableDataSource<Recibos> = new MatTableDataSource<Recibos>();
   @ViewChild('pagMain', {static: true}) pagMain: MatPaginator | any;
 
@@ -130,6 +135,28 @@ export class RecibosComponent implements OnInit {
   }
 
   get getMain() { return this.fgMain.controls; }
+
+  ticketPosListado(element: Recibos): string {
+    return textoNumeracionTicketRecibo(element as unknown as Record<string, unknown>);
+  }
+
+  comprobanteSunatColumna(element: Recibos): string {
+    return textoComprobanteSunatRecibo(element as unknown as Record<string, unknown>);
+  }
+
+  resumenEstadoEfactColumna(element: Recibos): string {
+    const e = element as unknown as Record<string, unknown>;
+    const t =
+      (e['efact_estado'] as string) ||
+      (e['estado_ose'] as string) ||
+      (e['estado_sunat'] as string) ||
+      '';
+    return t ? String(t) : '—';
+  }
+
+  tooltipEfactListado(element: Recibos): string {
+    return tooltipResumenEfactRecibo(element as unknown as Record<string, unknown>);
+  }
 
   ngOnInit() {
     this.puntoVentas = JSON.parse(this.puntoVentaStorage);
@@ -423,8 +450,9 @@ export class RecibosComponent implements OnInit {
         element.idPuntoVenta == null ? '': this.puntoVentas.nombre,
         element.vendedor == null ? '': element.vendedor,
         element.fechaEmision == null ? '': element.fechaEmision,
-        element.series == null ? '': element.series,
-        element.numeracion == null ? '': element.numeracion,
+        textoNumeracionTicketRecibo(element),
+        textoComprobanteSunatRecibo(element),
+        (element.efact_estado || element.estado_ose || element.estado_sunat || '') as string,
         element.total == null ? '': element.total
       ]);
 
@@ -445,7 +473,7 @@ export class RecibosComponent implements OnInit {
     doc.autoTable({
       styles: { lineWidth: 0.2, lineColor: [41, 128, 186]},
       margin: {top: 40},
-      head: [[ "PUNTO VENTA", "USUARIO", "FECHA EMISIÓN", "SERIES", "NUMERACIÓN", "TOTAL"]],
+      head: [[ "PUNTO VENTA", "USUARIO", "FECHA EMISIÓN", "TICKET (POS)", "CPE SUNAT", "ESTADO eFact", "TOTAL"]],
       body: this.generateData()
     });
     doc.save('Reporte de Tickets.pdf');
@@ -459,7 +487,7 @@ export class RecibosComponent implements OnInit {
     this.progressBar = true;
 
     const title = 'REPORTE DE TICKETS';
-    const header = [ "PUNTO VENTA", "USUARIO", "FECHA EMISIÓN", "SERIES", "NUMERACIÓN", "TOTAL"];
+    const header = [ "PUNTO VENTA", "USUARIO", "FECHA EMISIÓN", "TICKET (POS)", "CPE SUNAT", "ESTADO eFact", "TOTAL"];
     const data = this.MainDS.filteredData;
     let lista: any[] = [];
 
@@ -471,7 +499,7 @@ export class RecibosComponent implements OnInit {
     // Set font, size and style in title row.
     titleRow.font = { name: 'Arial', family: 4, size: 16, bold: true };
 
-    worksheet.mergeCells(`A1:F1`);
+    worksheet.mergeCells(`A1:G1`);
     worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' };
 
     // Blank Row
@@ -490,20 +518,22 @@ export class RecibosComponent implements OnInit {
       cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
     });
 
-    worksheet.getColumn(1).width = 40;
-    worksheet.getColumn(2).width = 40;
-    worksheet.getColumn(3).width = 40;
-    worksheet.getColumn(4).width = 40;
-    worksheet.getColumn(5).width = 40;
-    worksheet.getColumn(6).width = 40;
+    worksheet.getColumn(1).width = 36;
+    worksheet.getColumn(2).width = 28;
+    worksheet.getColumn(3).width = 22;
+    worksheet.getColumn(4).width = 22;
+    worksheet.getColumn(5).width = 22;
+    worksheet.getColumn(6).width = 28;
+    worksheet.getColumn(7).width = 14;
 
     this.MainDS.filteredData.forEach((element: any) => {
       lista.push(
         element.idPuntoVenta == null ? '': this.puntoVentas.nombre,
         element.vendedor == null ? '': element.vendedor,
         element.fechaEmision == null ? '': element.fechaEmision,
-        element.series == null ? '': element.series,
-        element.numeracion == null ? '': element.numeracion,
+        textoNumeracionTicketRecibo(element),
+        textoComprobanteSunatRecibo(element),
+        (element.efact_estado || element.estado_ose || element.estado_sunat || '') as string,
         element.total == null ? '': element.total
       );
       worksheet.addRow(lista);

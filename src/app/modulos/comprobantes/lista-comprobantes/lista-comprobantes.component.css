@@ -1,0 +1,20 @@
+.container {
+  padding: 1rem;
+}
+
+.filter-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+mat-form-field {
+  width: 200px;
+}
+
+/* no additional local overrides */
+
+table {
+  width: 100%;
+}

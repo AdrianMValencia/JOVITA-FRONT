@@ -3,7 +3,11 @@
 // The list of file replacements can be found in `angular.json`.
 
 export const environment = {
-  production: true
+  production: false,
+  BASE_URL:"http://127.0.0.1:8000/api/",
+  BASE_URL_UPLOAD:"http://127.0.0.1:8000/",
+  /** Si tiene texto, reemplaza la razón social del XML en el PDF ticket eFact (cabecera). */
+  nombreEmpresaTicketEfact: 'JOVITA PRODUCTOS MASIVOS S.A.C.'
 };
 
 /*

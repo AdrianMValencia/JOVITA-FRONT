@@ -6,11 +6,14 @@ import { NgbModalOptions, NgbActiveModal, NgbModal } from '@ng-bootstrap/ng-boot
 import { User } from 'src/app/modulos/Seguridad/models/User';
 import { Productos } from 'src/app/modulos/almacen/productos/model/productos';
 import { ProductosService } from 'src/app/modulos/almacen/productos/service/Productos.service';
+import { ComprobantesService } from 'src/app/modulos/comprobantes/comprobantes.service';
+import { ClientesService } from 'src/app/modulos/mantenimientos/clientes/Service/clientes.service';
 import { ModalClientesComponent } from 'src/app/modulos/mantenimientos/clientes/ModalClientes/ModalClientes.component';
 import { Clientes } from 'src/app/modulos/mantenimientos/clientes/Model/clientes';
 import { Monedas } from 'src/app/modulos/mantenimientos/monedas/model/monedas';
 import { PuntosVenta } from 'src/app/modulos/mantenimientos/puntosventa/model/puntosVenta';
 import { SeriesTickets } from 'src/app/modulos/mantenimientos/seriestickets/models/seriesTickets';
+import { NumeracionticketsService } from 'src/app/modulos/mantenimientos/numeraciontickets/service/numeraciontickets.service';
 import { FuncionesService } from 'src/app/shared/services/funciones.service';
 
 import { ModalItemsConsultarComponent } from '../modalItemsConsultar/modalItemsConsultar.component';
@@ -20,6 +23,11 @@ import { ModalconvertirkilosComponent } from '../modalconvertirkilos/modalconver
 import { Recibos } from '../model/recibos';
 import { RecibosDetalles } from '../model/recibosDetalles';
 import { RecibosService } from '../service/recibos.service';
+import {
+  asignarMontosDetalle,
+  distribuirTotalLineaEnSubtotalIgv,
+  recalcularTotalesCabeceraDesdeDetalles
+} from '../utils/recibos-afectacion-igv.util';
 declare var $: any;
 declare var document: any;
 
@@ -35,11 +43,11 @@ const MODALS: { [name: string]: Type<any> } = {
 @Component({
   selector: 'app-modalRecibos',
   templateUrl: './modalRecibos.component.html',
-  providers: [ RecibosService, ProductosService] ,
+  providers: [ RecibosService, ProductosService, ClientesService, NumeracionticketsService] ,
 })
 export class ModalRecibosComponent implements OnInit {
 
-  displayedColumns: string[] = ['codigo', 'descripcion', 'subtotal', 'cantidad', 'total', 'existencia', 'acciones'];
+  displayedColumns: string[] = ['codigo', 'descripcion', 'afectacion', 'subtotal', 'cantidad', 'total', 'existencia', 'acciones'];
   dataSource: MatTableDataSource<RecibosDetalles> = new MatTableDataSource<RecibosDetalles>();
   items: RecibosDetalles = new RecibosDetalles(0, '', '', '', 1, '', 0.18, '', 1);
   opcion: number = 1;
@@ -67,6 +75,15 @@ export class ModalRecibosComponent implements OnInit {
   cboSeries: SeriesTickets[] = [];
   cboVendedores: User[] = [];
 
+  tiposComprobante: { id: number; codigo: string; documento: string }[] = [];
+  tiposDocumento: { codigo: string; tipo: string }[] = [];
+  seriesList: any[] = [];
+  private buscandoCodigoBarra: boolean = false;
+  private codigoBarraTimeout: any;
+  private emisionManualMenorCinco: boolean = false;
+  private defaultTipoComprobante: string = 'BOLETA DE VENTA';
+  private defaultTipoDocumento: string = '-';
+
   NgbModalOptions: NgbModalOptions = {
     size: 'lg',
     centered: true,
@@ -81,6 +98,9 @@ export class ModalRecibosComponent implements OnInit {
   constructor(
     public recibosService: RecibosService,
     private productosService: ProductosService,
+    private comprobantesService: ComprobantesService,
+    private clientesService: ClientesService,
+    private numeracionticketsService: NumeracionticketsService,
     public funcionesService: FuncionesService,
     private fb: FormBuilder,
     private _modalService: NgbModal
@@ -89,29 +109,45 @@ export class ModalRecibosComponent implements OnInit {
   }
 
   new_Modal() {
+    this.emisionManualMenorCinco = false;
     this.formGroup = this.fb.group({
       id: 0,
       idPuntoVenta: [this.puntoVentas.id, [Validators.required]],
       puntoventa: [this.puntoVentas.nombre, [Validators.required]],
-      fechaEmision: [ this.funcionesService.generarFechaLocal3(new Date()), [Validators.required]],
+      tipoComprobante: ['', [Validators.required]],
+      serieComprobante: ['', [Validators.required]],
+      numeroComprobante: ['', [Validators.required, Validators.pattern(/^\d+$/)]],
+      /** Ticket interno POS (tbl_recibos / numeración tickets); distinto del CPE SUNAT. */
+      serieTicketPos: ['', [Validators.required]],
+      numeroTicketPos: ['', [Validators.required, Validators.pattern(/^\d+$/)]],
+      idSeriesTicketsTicketPos: [null as number | null],
+      fechaEmision: [ this.funcionesService.generarFechaLocal(new Date()), [Validators.required]],
+      tipoDocumento: ['', [Validators.required]],
+      numeroDocumento: ['00000000', [Validators.required]],
+      cliente: ['CLIENTES VARIOS', [Validators.required]],
       porcentajeDesc: ['', [Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
       montoDesc: ['', [Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
       totalGravada: ['', [Validators.required, Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
       totalIgv: ['', [Validators.required, Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
       otrosCargo: ['', [Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
       total: ['', [Validators.required, Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
+      emitirEfact: [false],
       pagado: '',
       vuelto: '',
       status: [true]
     });
+
+    this.aplicarReglaEmisionPorTotal();
   }
 
   get getModal() { return this.formGroup.controls; }
 
   ngOnInit() {
+    this.funcionesService.hideLoading();
     $("#codigoBarra").focus();
 
-    this.cargarProductos();
+    this.cargarCabeceraComprobante();
+    this.cargarTicketPosDesdeNumeracionTickets();
 
     document.addEventListener("keydown", (event: any) =>{
       // if (event.code === "F4")
@@ -136,17 +172,487 @@ export class ModalRecibosComponent implements OnInit {
     });
   }
 
+  cargarCabeceraComprobante(): void {
+    this.cargarTiposComprobante();
+    this.cargarTiposDocumento();
+  }
+
+  /**
+   * Serie y correlativo del ticket de caja (numeración tickets), no del CPE SUNAT.
+   * Usa `numeroActual` como último correlativo emitido y propone `numeroActual + 1`.
+   */
+  cargarTicketPosDesdeNumeracionTickets(): void {
+    this.numeracionticketsService.obtenerNumeracionTickets(this.puntoVentas.id).subscribe({
+      next: (nt) => {
+        const numeraciones: any[] = Array.isArray(nt?.numeracionTickets) ? nt.numeracionTickets : [];
+        const activas = numeraciones.filter(
+          (n) => n?.status === 1 || n?.status === '1' || n?.status === true
+        );
+        const row = activas[0] || numeraciones[0];
+        if (!row) {
+          this.formGroup.patchValue({
+            serieTicketPos: '',
+            numeroTicketPos: '',
+            idSeriesTicketsTicketPos: null
+          });
+          this.funcionesService.showWarning(
+            'No hay numeración de tickets POS para este punto de venta. Configúrela en Mantenimiento → Numeración tickets.'
+          );
+          return;
+        }
+        const serieStr =
+          row?.series?.serie != null
+            ? String(row.series.serie).trim()
+            : '';
+        const ultimo = parseInt(String(row?.numeroActual ?? '').replace(/\D/g, ''), 10);
+        const siguiente =
+          Number.isFinite(ultimo) && ultimo >= 0 ? String(ultimo + 1) : '1';
+        const idSt = row?.idSeriesTickets != null ? Number(row.idSeriesTickets) : null;
+        this.formGroup.patchValue({
+          serieTicketPos: serieStr,
+          numeroTicketPos: siguiente,
+          idSeriesTicketsTicketPos: Number.isFinite(idSt as number) ? idSt : null
+        });
+      },
+      error: () => {
+        this.formGroup.patchValue({
+          serieTicketPos: '',
+          numeroTicketPos: '',
+          idSeriesTicketsTicketPos: null
+        });
+        this.funcionesService.showWarning('No se pudo cargar la numeración del ticket POS.');
+      }
+    });
+  }
+
+  refrescarTicketPos(): void {
+    this.cargarTicketPosDesdeNumeracionTickets();
+  }
+
+  /** Reinicia el modal tras cobrar y vuelve a dejar cabecera con defaults. */
+  private resetFormularioDespuesCobro(): void {
+    this.detalles = [];
+    this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
+    this.new_Modal();
+    this.aplicarDefaultsLocalesCabecera();
+    this.cargarCabeceraComprobante();
+    this.cargarTicketPosDesdeNumeracionTickets();
+    this.isModalOpen = false;
+    this.productosLista = [];
+    setTimeout(() => {
+      $("#codigoBarra").focus();
+    }, 0);
+  }
+
+  /**
+   * Aplica defaults con datos ya cargados (si existen) para evitar que los selects queden vacíos
+   * mientras llegan respuestas de backend.
+   */
+  private aplicarDefaultsLocalesCabecera(): void {
+    const preferido = this.defaultTipoComprobante || 'BOLETA DE VENTA';
+    const tipoPreferido = this.tiposComprobante.find((t: any) =>
+      (t.documento || '').toString().trim().toUpperCase() === preferido.toUpperCase()
+    );
+    const boleta = this.tiposComprobante.find((t: any) =>
+      (t.documento || '').toString().trim().toUpperCase() === 'BOLETA DE VENTA'
+    );
+    const tipoDefault =
+      tipoPreferido?.documento ||
+      boleta?.documento ||
+      this.tiposComprobante[0]?.documento ||
+      preferido;
+    this.formGroup.patchValue({ tipoComprobante: tipoDefault });
+    this.defaultTipoComprobante = tipoDefault;
+    this.onTipoComprobanteChange();
+
+    const docPreferido = this.tiposDocumento.find((d: any) => d.codigo === this.defaultTipoDocumento);
+    const varios = this.tiposDocumento.find((d: any) => d.codigo === '-');
+    const tipoDocDefault = docPreferido?.codigo || varios?.codigo || this.tiposDocumento[0]?.codigo || '-';
+    this.formGroup.patchValue({
+      tipoDocumento: tipoDocDefault,
+      numeroDocumento: '00000000',
+      cliente: 'CLIENTES VARIOS'
+    });
+    this.defaultTipoDocumento = tipoDocDefault;
+  }
+
+  cargarTiposComprobante(): void {
+    this.comprobantesService.getTipos().subscribe((resp: any) => {
+      const tipos = Array.isArray(resp) ? resp : (resp?.tipos || []);
+      this.tiposComprobante = tipos;
+
+      const preferido = this.tiposComprobante.find((t: any) =>
+        (t.documento || '').toString().trim().toUpperCase() === this.defaultTipoComprobante.toUpperCase()
+      );
+      // Default: BOLETA DE VENTA
+      const boleta = this.tiposComprobante.find((t: any) =>
+        (t.documento || '').toString().trim().toUpperCase() === 'BOLETA DE VENTA'
+      );
+
+      if (preferido) {
+        this.formGroup.patchValue({ tipoComprobante: preferido.documento });
+        this.defaultTipoComprobante = preferido.documento;
+        this.onTipoComprobanteChange();
+      } else if (boleta) {
+        this.formGroup.patchValue({ tipoComprobante: boleta.documento });
+        this.defaultTipoComprobante = boleta.documento;
+        this.onTipoComprobanteChange();
+      } else if (this.tiposComprobante.length > 0) {
+        this.formGroup.patchValue({ tipoComprobante: this.tiposComprobante[0].documento });
+        this.defaultTipoComprobante = this.tiposComprobante[0].documento;
+        this.onTipoComprobanteChange();
+      }
+    }, () => {
+      // Mantener combos previos para no dejar selects en blanco ante fallos transitorios.
+      if (this.tiposComprobante.length > 0) {
+        this.aplicarDefaultsLocalesCabecera();
+      }
+    });
+  }
+
+  cargarTiposDocumento(): void {
+    this.comprobantesService.getTiposDocumento().subscribe((resp: any) => {
+      const rawTipos = Array.isArray(resp) ? resp : (resp?.tipos || []);
+      this.tiposDocumento = rawTipos.map((item: any) => ({
+        codigo: item.codigo,
+        tipo: item.tipo || item.descripcion
+      }));
+
+      // Default: VARIOS - VENTAS MENORES A S/.700.00 Y OTROS
+      const preferido = this.tiposDocumento.find((d: any) => d.codigo === this.defaultTipoDocumento);
+      const varios = this.tiposDocumento.find((d: any) => d.codigo === '-');
+      if (preferido) {
+        this.formGroup.patchValue({
+          tipoDocumento: preferido.codigo,
+          numeroDocumento: '00000000',
+          cliente: 'CLIENTES VARIOS'
+        });
+        this.defaultTipoDocumento = preferido.codigo;
+      } else if (varios) {
+        this.formGroup.patchValue({
+          tipoDocumento: varios.codigo,
+          numeroDocumento: '00000000',
+          cliente: 'CLIENTES VARIOS'
+        });
+        this.defaultTipoDocumento = varios.codigo;
+      } else if (this.tiposDocumento.length > 0) {
+        this.formGroup.patchValue({
+          tipoDocumento: this.tiposDocumento[0].codigo,
+          numeroDocumento: '00000000',
+          cliente: 'CLIENTES VARIOS'
+        });
+        this.defaultTipoDocumento = this.tiposDocumento[0].codigo;
+      }
+    }, () => {
+      // Mantener combos previos para no dejar selects en blanco ante fallos transitorios.
+      if (this.tiposDocumento.length > 0) {
+        this.aplicarDefaultsLocalesCabecera();
+      }
+    });
+  }
+
+  onTipoComprobanteChange(): void {
+    const tipo = this.formGroup.get('tipoComprobante')?.value;
+
+    // Siempre limpiar campos dependientes cuando cambia el tipo
+    this.seriesList = [];
+    this.formGroup.patchValue({ serieComprobante: '', numeroComprobante: '' });
+
+    if (!tipo) {
+      return;
+    }
+
+    this.comprobantesService.obtenerSeries(this.puntoVentas.id).subscribe((resp: any) => {
+      this.seriesList = resp?.series || [];
+
+      let defaultSerie = '';
+      const tLower = tipo.toString().toLowerCase();
+      if (tLower.includes('boleta')) {
+        defaultSerie = 'BE01';
+      } else if (tLower.includes('factura')) {
+        defaultSerie = 'FE01';
+      }
+
+      const serieEncontrada = this.seriesList.find((s: any) =>
+        s?.serie && s.serie.toString().toUpperCase() === defaultSerie.toUpperCase()
+      );
+
+      if (serieEncontrada) {
+        this.formGroup.patchValue({ serieComprobante: serieEncontrada.serie });
+      } else if (this.seriesList.length > 0) {
+        this.formGroup.patchValue({ serieComprobante: this.seriesList[0].serie });
+      } else {
+        this.formGroup.patchValue({ serieComprobante: '' });
+      }
+
+      this.onSerieComprobanteChange();
+    }, () => {
+      this.seriesList = [];
+      this.formGroup.patchValue({ serieComprobante: '', numeroComprobante: '' });
+    });
+  }
+
+  onTipoDocumentoChange(): void {
+    const tipoDocumento = this.formGroup.get('tipoDocumento')?.value;
+
+    // Limpiar dependientes al cambiar el tipo de documento
+    this.formGroup.patchValue({
+      numeroDocumento: '',
+      cliente: ''
+    });
+
+    // Default especial para "VARIOS - VENTAS MENORES A S/.700.00 Y OTROS"
+    if (tipoDocumento === '-') {
+      this.formGroup.patchValue({
+        numeroDocumento: '00000000',
+        cliente: 'CLIENTES VARIOS'
+      });
+    }
+  }
+
+  consultarDocumento(): void {
+    const tipoDoc = this.formGroup.get('tipoDocumento')?.value;
+    const numeroDocumento = (this.formGroup.get('numeroDocumento')?.value || '').toString().trim();
+
+    if (!tipoDoc) {
+      this.funcionesService.showError('Seleccione primero el tipo de documento');
+      return;
+    }
+
+    // Para "VARIOS" no aplica consulta SUNAT
+    if (tipoDoc === '-') {
+      this.formGroup.patchValue({
+        numeroDocumento: '00000000',
+        cliente: 'CLIENTES VARIOS'
+      });
+      return;
+    }
+
+    if (!numeroDocumento) {
+      return;
+    }
+
+    if (tipoDoc === '1' && numeroDocumento.length !== 8) {
+      this.funcionesService.showError('El DNI debe tener 8 dígitos');
+      return;
+    }
+
+    if (tipoDoc === '6' && numeroDocumento.length !== 11) {
+      this.funcionesService.showError('El RUC debe tener 11 dígitos');
+      return;
+    }
+
+    if ((tipoDoc === '1' || tipoDoc === '6') && !/^[0-9]+$/.test(numeroDocumento)) {
+      this.funcionesService.showError('El número de documento debe contener solo dígitos');
+      return;
+    }
+
+    this.clientesService.consultasSUNAT(numeroDocumento, this.puntoVentas?.id).subscribe((resp: any) => {
+      if (resp && resp.status === 200 && resp.clientes) {
+        const cliente = resp.clientes;
+        this.formGroup.patchValue({
+          cliente: cliente.nombre || cliente.razonsocial || cliente.razonSocial || ''
+        });
+      } else {
+        this.formGroup.patchValue({ cliente: '' });
+        this.funcionesService.showInfo('No se encontró información para el documento ingresado');
+      }
+    }, () => {
+      this.formGroup.patchValue({ cliente: '' });
+      this.funcionesService.showError('No se pudo consultar el documento');
+    });
+  }
+
+  onSerieComprobanteChange(esRefrescoManual: boolean = false): void {
+    const serie = this.formGroup.get('serieComprobante')?.value;
+    const tipoComprobante = this.formGroup.get('tipoComprobante')?.value;
+    if (!serie) {
+      this.formGroup.patchValue({ numeroComprobante: '' });
+      return;
+    }
+    this.defaultTipoComprobante = tipoComprobante || this.defaultTipoComprobante;
+
+    this.resolverNumeracionRecibos(false, () => {
+      if (esRefrescoManual) {
+        const numero = this.formGroup.get('numeroComprobante')?.value || '';
+        this.funcionesService.showInfo(`Correlativo actualizado: ${numero}`);
+      }
+    });
+  }
+
+  private resolverNumeracionRecibos(mostrarMensajeSiFalla: boolean, onSuccess?: () => void): void {
+    const serie = this.formGroup.get('serieComprobante')?.value;
+    const tipoComprobante = this.formGroup.get('tipoComprobante')?.value;
+    if (!serie) {
+      this.formGroup.patchValue({ numeroComprobante: '' });
+      if (mostrarMensajeSiFalla) {
+        this.funcionesService.showWarning('Seleccione una serie para obtener el correlativo.');
+      }
+      return;
+    }
+
+    this.recibosService
+      .obtenerSiguienteNumeracion({
+        idPuntoVenta: this.puntoVentas.id,
+        tipoComprobante,
+        serieComprobante: serie,
+        series: serie
+      })
+      .subscribe(
+        (nr) => {
+          const sig = nr?.siguiente;
+          const numero = sig !== undefined && sig !== null && sig !== '' ? String(sig) : '';
+          this.formGroup.patchValue({ numeroComprobante: numero });
+          this.defaultTipoComprobante = tipoComprobante || this.defaultTipoComprobante;
+          if (!numero && mostrarMensajeSiFalla) {
+            this.funcionesService.showWarning('No se pudo obtener el correlativo desde recibos/numeracion.');
+          }
+          if (numero && onSuccess) {
+            onSuccess();
+          }
+        },
+        () => {
+          // fallback legacy para no bloquear el flujo
+          this.comprobantesService.getNumeracion(serie, this.puntoVentas.id).subscribe(
+            (nr: any) => {
+              const sig = nr?.siguiente;
+              const numero = sig !== undefined && sig !== null && sig !== '' ? String(sig) : '';
+              this.formGroup.patchValue({ numeroComprobante: numero });
+              if (!numero && mostrarMensajeSiFalla) {
+                this.funcionesService.showWarning('No se pudo resolver el correlativo para la serie seleccionada.');
+              }
+              if (numero && onSuccess) {
+                onSuccess();
+              }
+            },
+            () => {
+              this.formGroup.patchValue({ numeroComprobante: '' });
+              if (mostrarMensajeSiFalla) {
+                this.funcionesService.showWarning(
+                  'No se pudo obtener el correlativo automático. Verifique tipo/serie e intente nuevamente.'
+                );
+              }
+            }
+          );
+        }
+      );
+  }
+
   cargarProductos(){
+    if (this.productosLista.length > 0) {
+      return;
+    }
+
     this.funcionesService.showLoading();
     this.productosService.cargarProductosVentas(this.puntoVentas.id).subscribe(response => {
       this.productosLista = response.productos;
       this.funcionesService.hideLoading();
+    }, () => {
+      this.funcionesService.hideLoading();
     });
   }
 
-  highlight(row: any) {
-    this.selectedRowIndex = row.codigoBarra;
-    $("#cantidad-" + row.codigoBarra).focus();
+  private registrarProductoEnCache(producto: Productos): void {
+    if (!producto || !producto.id) {
+      return;
+    }
+
+    const existe = this.productosLista.find((p: Productos) => parseInt(p.id, 10) === parseInt(producto.id, 10));
+    if (!existe) {
+      this.productosLista.push(producto);
+    }
+  }
+
+  /**
+   * Enfoca la cantidad de la fila. No actuar si el clic viene de un control (select, input, botón),
+   * porque el focus forzado cierra el desplegable del select IGV.
+   */
+  highlight(row: any, event?: MouseEvent) {
+    const target = event?.target as HTMLElement | undefined;
+    if (target?.closest('select, input, button, textarea, a, label')) {
+      return;
+    }
+    const codigoBarra = typeof row === 'string' ? row : row?.codigoBarra;
+    if (!codigoBarra) {
+      return;
+    }
+    this.selectedRowIndex = codigoBarra;
+    $("#cantidad-" + codigoBarra).focus();
+  }
+
+  private obtenerTotalVentaActual(): number {
+    const total = parseFloat(this.formGroup?.get('total')?.value || '0');
+    return isNaN(total) ? 0 : total;
+  }
+
+  private aplicarReglaEmisionPorTotal(): void {
+    if (!this.formGroup) {
+      return;
+    }
+
+    const total = this.obtenerTotalVentaActual();
+    const debeEmitir = total >= 5;
+
+    if (debeEmitir) {
+      this.emisionManualMenorCinco = false;
+      this.formGroup.patchValue({ emitirEfact: true }, { emitEvent: false });
+      return;
+    }
+
+    if (!this.emisionManualMenorCinco) {
+      this.formGroup.patchValue({ emitirEfact: false }, { emitEvent: false });
+    }
+  }
+
+  onEmitirEfactChange(event: any): void {
+    const checked = !!event?.checked;
+    const total = this.obtenerTotalVentaActual();
+
+    if (total < 5) {
+      this.emisionManualMenorCinco = checked;
+    }
+
+    this.formGroup.patchValue({ emitirEfact: checked }, { emitEvent: false });
+  }
+
+  private productoPorDetalle(detalle: RecibosDetalles): Productos | undefined {
+    return this.productosLista.find(
+      (p) =>
+        parseInt(String(p.id), 10) === parseInt(String(detalle.idProducto), 10) &&
+        parseInt(String(p.idPuntoVenta), 10) === this.puntoVentas.id
+    );
+  }
+
+  private refrescarTotalesCabecera(): void {
+    const pctRaw = this.formGroup.get('porcentajeDesc')?.value;
+    const pct =
+      pctRaw !== '' && pctRaw != null && String(pctRaw) !== '0'
+        ? parseFloat(String(pctRaw))
+        : NaN;
+    const opciones = !isNaN(pct) && pct ? { porcentajeDescGlobal: pct } : undefined;
+    const t = recalcularTotalesCabeceraDesdeDetalles(
+      this.detalles,
+      (d) => this.productoPorDetalle(d),
+      opciones
+    );
+    this.formGroup.get('totalGravada').setValue(t.totalGravada);
+    this.formGroup.get('totalIgv').setValue(t.totalIgv);
+    this.formGroup.get('total').setValue(t.total);
+    if (t.montoDesc !== undefined) {
+      this.formGroup.get('montoDesc').setValue(t.montoDesc);
+    } else if (!opciones) {
+      this.formGroup.get('montoDesc').setValue('0.00');
+    }
+  }
+
+  onCodigoAfectacionLineaChange(detalle: RecibosDetalles, codigo: string): void {
+    detalle.codigoAfectacionIgv = codigo;
+    const qty =
+      parseFloat(String($('#cantidad-' + detalle.codigoBarra).val() ?? detalle.cantidad)) || 0;
+    const precio = parseFloat(String(detalle.precio ?? 0)) || 0;
+    asignarMontosDetalle(detalle, qty, precio, this.productoPorDetalle(detalle));
+    this.refrescarTotalesCabecera();
+    this.aplicarReglaEmisionPorTotal();
   }
 
   calcular(detalle:RecibosDetalles){
@@ -164,26 +670,17 @@ export class ModalRecibosComponent implements OnInit {
       $("#cantidad-" + productos.codigoBarra).val(1);
     }
 
+    const qty = parseFloat($("#cantidad-" + detalle.codigoBarra).val()) || 0;
+    const precioUnit = parseFloat(String(productos.precio)) || 0;
     this.detalles.forEach(element => {
       if(element.idProducto === productos.id){
-        // element.cantidad = (parseFloat($("#cantidad-" + detalle.codigoBarra).val())).toFixed(2);
-        element.total = ((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * parseFloat(productos.precio)).toFixed(2));
-        element.subtotal = ((((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * parseFloat(productos.precio)) / 1.18)).toFixed(2));
-        element.igv = (((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * parseFloat(productos.precio)) - ((((parseFloat($("#cantidad-" + detalle.codigoBarra).val())) * parseFloat(productos.precio)) / 1.18))).toFixed(2));
-        element.existencia = parseFloat(productos.stockActual) - parseFloat($("#cantidad-" + detalle.codigoBarra).val())
+        asignarMontosDetalle(element, qty, precioUnit, productos);
+        element.existencia = parseFloat(productos.stockActual) - qty;
       }
     });
 
-    let subtotal: any = 0;
-    let total: any = 0;
-    this.detalles.forEach(element => {
-      subtotal += parseFloat(element.subtotal);
-      total += parseFloat(element.total);
-    });
-
-    this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-    this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-    this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+    this.refrescarTotalesCabecera();
+    this.aplicarReglaEmisionPorTotal();
   }
 
   onKeydown(event: any, indice: number) {
@@ -245,6 +742,7 @@ export class ModalRecibosComponent implements OnInit {
           if (result.value === 'loadAgain') {
 
             this.productos = result.productos;
+            this.registrarProductoEnCache(result.productos);
             if(result.productos.nombreUm.toUpperCase().includes('KILOGRAMO')){
               this.openModal('kilos');
             }else{
@@ -259,10 +757,11 @@ export class ModalRecibosComponent implements OnInit {
                   this.detalles.forEach(element => {
                     if(element.idProducto === result.items.idProducto){
                       contador += 1;
-                      element.cantidad = (parseFloat(element.cantidad) + parseFloat(result.items.cantidad)).toFixed(2);
-                      element.total = (parseFloat(element.cantidad) * parseFloat(element.precio)).toFixed(2);
-                      element.subtotal = (parseFloat(element.total) / 1.18).toFixed(2);
-                      element.igv = (parseFloat(element.total) - parseFloat(element.subtotal)).toFixed(2);
+                      const cant = parseFloat(String(element.cantidad)) + parseFloat(String(result.items.cantidad));
+                      element.cantidad = cant.toFixed(2);
+                      const prod =
+                        this.productoPorDetalle(element) || (result.productos as Productos);
+                      asignarMontosDetalle(element, cant, parseFloat(String(element.precio)), prod);
                     }
                   });
 
@@ -280,27 +779,14 @@ export class ModalRecibosComponent implements OnInit {
 
               this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-              let subtotal: any = 0;
-              let total: any = 0;
-              this.detalles.forEach(element => {
-                subtotal += parseFloat(element.subtotal);
-                total += parseFloat(element.total);
-              });
-
-              this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-              this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-              this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+              this.refrescarTotalesCabecera();
+              this.aplicarReglaEmisionPorTotal();
             }
           }
           break;
         case 'medioPago':
           if (result.value === 'loadAgain') {
-            this.detalles = [];
-            this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
-            this.new_Modal();
-            $("#codigoBarra").focus();
-            this.isModalOpen = false;
-            this.cargarProductos();
+            this.resetFormularioDespuesCobro();
           }
           break;
         case 'kilos':
@@ -309,6 +795,8 @@ export class ModalRecibosComponent implements OnInit {
           let productos = result.productos;
           let cantidad = result.cantidad;
           let precio = result.precio;
+
+          this.registrarProductoEnCache(productos);
 
 
 
@@ -333,7 +821,7 @@ export class ModalRecibosComponent implements OnInit {
                 detalles = this.detalles.filter(x => parseInt(x.idProducto) === parseInt(productos.id));
 
                 if(detalles.length === 0){
-                  this.detalles.push({
+                  const row: RecibosDetalles = {
                     idRecibo: 0,
                     idProducto: productos.id,
                     codigoBarra: productos.codigoBarra,
@@ -341,21 +829,18 @@ export class ModalRecibosComponent implements OnInit {
                     detalle: '',
                     precio: productos.precio,
                     cantidad: parseFloat(cantidad).toFixed(2),
-                    total: parseFloat(precio).toFixed(2),
-                    subtotal: ((((parseFloat(cantidad) * parseFloat(productos.precio)) / 1.1)).toFixed(2)),
-                    igv: (((parseFloat(cantidad) * parseFloat(productos.precio)) - (((parseFloat(cantidad) * parseFloat(productos.precio)) / 1.1))).toFixed(2)),
                     porcentajeDesc: 0.00,
                     totalDesc: 0.00,
-                    existencia: productos.stockActual - parseFloat(cantidad)
-                  });
+                    existencia: parseFloat(String(productos.stockActual)) - parseFloat(cantidad)
+                  } as RecibosDetalles;
+                  distribuirTotalLineaEnSubtotalIgv(row, parseFloat(precio), productos);
+                  this.detalles.push(row);
                 }else{
 
                   this.detalles.forEach(element => {
                     if(element.idProducto === productos.id){
-                      element.cantidad =( parseFloat(cantidad) + parseFloat(element.cantidad)).toFixed(2);
-                      element.total = parseFloat(precio).toFixed(2);
-                      element.subtotal = ((((parseFloat(element.cantidad) * parseFloat(productos.precio)) / 1.18)).toFixed(2));
-                      element.igv = (((parseFloat(element.cantidad) * parseFloat(productos.precio)) - (((parseFloat(element.cantidad) * parseFloat(productos.precio)) / 1.18))).toFixed(2));
+                      element.cantidad =( parseFloat(cantidad) + parseFloat(String(element.cantidad))).toFixed(2);
+                      distribuirTotalLineaEnSubtotalIgv(element, parseFloat(precio), productos);
                       element.existencia = element.existencia - parseFloat(cantidad)
                     }
                   });
@@ -365,16 +850,8 @@ export class ModalRecibosComponent implements OnInit {
                 this.selectedRowIndex = productos.codigoBarra;
                 this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-                let subtotal: any = 0;
-                let total: any = 0;
-                this.detalles.forEach(element => {
-                  subtotal += parseFloat(element.subtotal);
-                  total += parseFloat(element.total);
-                });
-
-                this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-                this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-                this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+                this.refrescarTotalesCabecera();
+                this.aplicarReglaEmisionPorTotal();
               }
             }
           }
@@ -407,16 +884,8 @@ export class ModalRecibosComponent implements OnInit {
 
        this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-       let subtotal: any = 0;
-       let total: any = 0;
-       this.detalles.forEach(element => {
-         subtotal += parseFloat(element.subtotal);
-         total += parseFloat(element.total);
-       });
-
-       this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-       this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-       this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+       this.refrescarTotalesCabecera();
+      this.aplicarReglaEmisionPorTotal();
 
         this.funcionesService.hideLoading();
         this.progressBar = false;
@@ -440,156 +909,164 @@ export class ModalRecibosComponent implements OnInit {
     this.progressBar = true;
 
     if(value !== '' && value !== '0'){
-
-      let subtotal: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-      });
-      this.formGroup.get("montoDesc").setValue((parseFloat(subtotal) * (parseFloat(value) / 100)).toFixed(2));
-
-      this.formGroup.get("totalGravada").setValue((parseFloat(subtotal) - parseFloat(this.formGroup.get("montoDesc").value)).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((this.formGroup.get("totalGravada").value * 0.18).toFixed(2));
-      this.formGroup.get("total").setValue((parseFloat(this.formGroup.get("totalGravada").value) + parseFloat(this.formGroup.get("totalIgv").value)).toFixed(2));
-
+      this.formGroup.patchValue({ porcentajeDesc: value });
     }else{
-
-      let subtotal: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-      });
-
-      this.formGroup.get("montoDesc").setValue(0.00);
-      this.formGroup.get("totalGravada").setValue(subtotal.toFixed(2));
-      this.formGroup.get("totalIgv").setValue((this.formGroup.get("totalGravada").value * 0.18).toFixed(2));
-      this.formGroup.get("total").setValue((parseFloat(this.formGroup.get("totalGravada").value) + parseFloat(this.formGroup.get("totalIgv").value)).toFixed(2));
+      this.formGroup.patchValue({ porcentajeDesc: '', montoDesc: '0.00' });
     }
+
+    this.refrescarTotalesCabecera();
+    this.aplicarReglaEmisionPorTotal();
 
     this.funcionesService.hideLoading();
     this.progressBar = false;
   }
 
   onEnter(event: any){
-    if (event.value !== '') {
-      // let productosStorage: string | any = localStorage.getItem('productos');
-      // let productosLista: Productos[] = JSON.parse(productosStorage);
-      let productosLista: Productos[] = this.productosLista;
-      productosLista = productosLista.filter(x => x.codigoBarra === event.value);
+    const codigoBarra = (event.value || '').toString().trim();
+    if (codigoBarra === '') {
+      return;
+    }
 
-      if(productosLista.length > 0){
-        // this.productosService.obtenerProductosCodigoBarra(event.value, this.puntoVentas.id).subscribe(response => {
-          let productos: Productos = productosLista[0];
-          this.productos = productos;
-          // let productos: Productos = response.productos;
-          if(productos.nombreUm.toUpperCase().includes('KILOGRAMO')){
-            this.productos = productos;
-            this.openModal('kilos');
+    if (this.codigoBarraTimeout) {
+      clearTimeout(this.codigoBarraTimeout);
+    }
+
+    this.codigoBarraTimeout = setTimeout(() => {
+      if (this.buscandoCodigoBarra) {
+        return;
+      }
+
+      this.buscandoCodigoBarra = true;
+      this.productosService.obtenerProductosCodigoBarra(codigoBarra, this.puntoVentas.id).subscribe((response: any) => {
+        this.buscandoCodigoBarra = false;
+        const productos: Productos = response?.productos;
+
+        if (!productos || !productos.id) {
+          return;
+        }
+
+        this.productos = productos;
+        this.registrarProductoEnCache(productos);
+
+        if(productos.nombreUm.toUpperCase().includes('KILOGRAMO')){
+          this.openModal('kilos');
+        }else{
+          if(parseFloat(productos.stockActual) > 0 && parseFloat(productos.stockActual) <= parseFloat(productos.stockAlerta)){
+            this.funcionesService.showError('El producto ' + productos.nombre + ' se esta quedando sin stock. Stock Actual: ' + productos.stockActual);
+            $("#codigoBarra").val('');
+            $("#codigoBarra").focus();
+          }
+
+          if(parseFloat(productos.stockActual) <= 0){
+            this.funcionesService.showError('El producto ' + productos.nombre + ' no tiene stock');
+            $("#codigoBarra").val('');
+            $("#codigoBarra").focus();
           }else{
-            if(parseFloat(productos.stockActual) > 0 && parseFloat(productos.stockActual) <= parseFloat(productos.stockAlerta)){
-              this.funcionesService.showError('El producto ' + productos.nombre + ' se esta quedando sin stock. Stock Actual: ' + productos.stockActual);
-              $("#codigoBarra").val('');
-              $("#codigoBarra").focus();
-            }
 
-            if(parseFloat(productos.stockActual) <= 0){
-              this.funcionesService.showError('El producto ' + productos.nombre + ' no tiene stock');
-              $("#codigoBarra").val('');
-              $("#codigoBarra").focus();
+            let detalles: RecibosDetalles[] = [];
+            detalles = this.detalles.filter(x => parseInt(x.idProducto) === parseInt(productos.id));
+            this.selectedRowIndex = productos.codigoBarra;
+
+            if(detalles.length === 0){
+              const row: RecibosDetalles = {
+                idRecibo: 0,
+                idProducto: productos.id,
+                codigoBarra: productos.codigoBarra,
+                nombre: productos.nombre,
+                detalle: '',
+                precio: productos.precio,
+                cantidad: '1.00',
+                porcentajeDesc: 0.00,
+                totalDesc: 0.00,
+                existencia: parseFloat(String(productos.stockActual)) - 1
+              } as RecibosDetalles;
+              asignarMontosDetalle(row, 1, parseFloat(String(productos.precio)), productos);
+              this.detalles.push(row);
             }else{
 
-              let detalles: RecibosDetalles[] = [];
-              detalles = this.detalles.filter(x => parseInt(x.idProducto) === parseInt(productos.id));
-              this.selectedRowIndex = productos.codigoBarra;
-
-              if(detalles.length === 0){
-                this.detalles.push({
-                  idRecibo: 0,
-                  idProducto: productos.id,
-                  codigoBarra: productos.codigoBarra,
-                  nombre: productos.nombre,
-                  detalle: '',
-                  precio: productos.precio,
-                  cantidad: 1.00,
-                  total: ((1 * parseFloat(productos.precio)).toFixed(2)),
-                  subtotal: ((((1 * parseFloat(productos.precio)) / 1.1)).toFixed(2)),
-                  igv: (((1 * parseFloat(productos.precio)) - (((1 * parseFloat(productos.precio)) / 1.1))).toFixed(2)),
-                  porcentajeDesc: 0.00,
-                  totalDesc: 0.00,
-                  existencia: parseFloat(productos.stockActual) - 1
-                });
-              }else{
-
-                this.detalles.forEach(element => {
-                  if(element.idProducto === productos.id){
-                    if((parseFloat(productos.stockActual) - parseFloat(element.cantidad)) <= 0){
-                      this.funcionesService.showError('No puede seguir agregando debido a que la existencia seria negativo');
-                    }else{
-                      element.cantidad = (1 + parseFloat(element.cantidad)).toFixed(2);
-                      element.total = ((element.cantidad * parseFloat(productos.precio)).toFixed(2));
-                      element.subtotal = ((((element.cantidad * parseFloat(productos.precio)) / 1.18)).toFixed(2));
-                      element.igv = (((element.cantidad * parseFloat(productos.precio)) - ((((element.cantidad) * parseFloat(productos.precio)) / 1.18))).toFixed(2));
-                      element.existencia = (parseFloat(productos.stockActual) - parseFloat(element.cantidad)).toFixed(2);
-                    }
-                  }
-                });
-              }
-
-              this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
-              $("#codigoBarra").focus();
-              $("#codigoBarra").val('');
-
-              let subtotal: any = 0;
-              let total: any = 0;
               this.detalles.forEach(element => {
-                subtotal += parseFloat(element.subtotal);
-                total += parseFloat(element.total);
+                if(element.idProducto === productos.id){
+                  if((parseFloat(String(productos.stockActual)) - parseFloat(String(element.cantidad))) <= 0){
+                    this.funcionesService.showError('No puede seguir agregando debido a que la existencia seria negativo');
+                  }else{
+                    const cant = 1 + parseFloat(String(element.cantidad));
+                    element.cantidad = cant.toFixed(2);
+                    asignarMontosDetalle(element, cant, parseFloat(String(productos.precio)), productos);
+                    element.existencia = (parseFloat(String(productos.stockActual)) - parseFloat(String(element.cantidad))).toFixed(2);
+                  }
+                }
               });
-
-              this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-              this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-              this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
             }
+
+            this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
+            $("#codigoBarra").focus();
+            $("#codigoBarra").val('');
+
+            this.refrescarTotalesCabecera();
+            this.aplicarReglaEmisionPorTotal();
           }
-        // });
-      }
-    }
+        }
+
+      }, () => {
+        this.buscandoCodigoBarra = false;
+      });
+    }, 180);
   }
 
   emitirRecibos(){
     if(this.formGroup.invalid){
       this.funcionesService.swalError('Información incorrecta o incompleta');
     }else{
+      this.resolverNumeracionRecibos(true, () => {
+        this.funcionesService.showLoading();
+        this.progressBar = true;
 
-      this.funcionesService.showLoading();
-      this.progressBar = true;
+        if(this.detalles.length === 0){
+          this.funcionesService.showError('Ingrese un item como minimo');
+          this.funcionesService.hideLoading();
+          this.progressBar = false;
 
-      if(this.detalles.length === 0){
-        this.funcionesService.showError('Ingrese un item como minimo');
-        this.funcionesService.hideLoading();
-        this.progressBar = false;
+        }else{
 
-      }else{
+          this.detalles.forEach(element => {
+            element.precio = parseFloat(String(element.precio));
+            const q = parseFloat(String($("#cantidad-" + element.codigoBarra).val())).toFixed(2);
+            element.cantidad = q;
+            asignarMontosDetalle(
+              element,
+              parseFloat(q),
+              parseFloat(String(element.precio)),
+              this.productoPorDetalle(element)
+            );
+          });
 
-        this.detalles.forEach(element => {
-          element.precio = parseFloat(element.precio);
-          element.cantidad = parseFloat($("#cantidad-" + element.codigoBarra).val()).toFixed(2)
-        });
-
-        let vfbModal = this.formGroup.value;
-        this.recibos.id = vfbModal.id;
-        this.recibos = vfbModal;
-        this.recibos.idPuntoVenta = vfbModal.idPuntoVenta;
-        this.recibos.fechaEmision = vfbModal.fechaEmision;
-        this.recibos.totalGravada = this.formGroup.get("totalGravada").value;
-        this.recibos.totalIgv = this.formGroup.get("totalIgv").value;
-        this.recibos.total = this.formGroup.get("total").value;
-        this.recibos.pagado = this.formGroup.get("pagado").value;
-        this.recibos.vuelto = this.formGroup.get("vuelto").value;
-        this.recibos.detalles = this.detalles;
-        this.isModalOpen = true;
-        this.openModal('medioPago');
-        this.funcionesService.hideLoading();
-        this.progressBar = false;
-      }
+          let vfbModal = this.formGroup.value;
+          this.recibos.id = vfbModal.id;
+          this.recibos = vfbModal;
+          this.recibos.idPuntoVenta = vfbModal.idPuntoVenta;
+          this.recibos.documento = vfbModal.tipoDocumento;
+          this.recibos.razonSocial = vfbModal.cliente;
+          this.recibos.series = vfbModal.serieTicketPos;
+          this.recibos.numeracion = vfbModal.numeroTicketPos;
+          this.recibos.serieComprobanteEfact = vfbModal.serieComprobante;
+          this.recibos.numeroComprobanteEfact = vfbModal.numeroComprobante;
+          const rPayload: any = this.recibos;
+          rPayload.serie_comprobante_efact = vfbModal.serieComprobante;
+          rPayload.numero_comprobante_efact = vfbModal.numeroComprobante;
+          this.recibos.fechaEmision = vfbModal.fechaEmision;
+          this.recibos.totalGravada = this.formGroup.get("totalGravada").value;
+          this.recibos.totalIgv = this.formGroup.get("totalIgv").value;
+          this.recibos.total = this.formGroup.get("total").value;
+          this.recibos.emitirEfact = !!this.formGroup.get("emitirEfact")?.value;
+          this.recibos.pagado = this.formGroup.get("pagado").value;
+          this.recibos.vuelto = this.formGroup.get("vuelto").value;
+          this.recibos.detalles = this.detalles;
+          this.isModalOpen = true;
+          this.openModal('medioPago');
+          this.funcionesService.hideLoading();
+          this.progressBar = false;
+        }
+      });
     }
   }
 
@@ -600,21 +1077,13 @@ export class ModalRecibosComponent implements OnInit {
     }else{
 
       $("#cantidad-" + detalle.codigoBarra).val((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) + 1).toFixed(2));
-      let totalGravada: any = 0;
-      let totales: any = 0;
-      detalle.total = parseFloat(((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * (parseFloat(detalle.precio))) - parseFloat(detalle.porcentajeDesc)).toFixed(2));
-      detalle.subtotal = parseFloat((detalle.total / 1.18).toFixed(2));
-      detalle.igv = parseFloat(((detalle.total - detalle.subtotal)).toFixed(2));
+      const qty = parseFloat($("#cantidad-" + detalle.codigoBarra).val()) || 0;
+      const prod = this.productoPorDetalle(detalle);
+      asignarMontosDetalle(detalle, qty, parseFloat(String(detalle.precio)), prod);
       detalle.existencia = detalle.existencia  - 1;
 
-      this.detalles.forEach((element, index) => {
-        totalGravada += parseFloat(element.subtotal);
-        totales += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(totalGravada).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(totales).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(totales) - parseFloat(totalGravada)).toFixed(2));
+      this.refrescarTotalesCabecera();
+      this.aplicarReglaEmisionPorTotal();
     }
   }
 
@@ -622,83 +1091,98 @@ export class ModalRecibosComponent implements OnInit {
     if($("#cantidad-" + detalle.codigoBarra).val() > 1){
       $("#cantidad-" + detalle.codigoBarra).val((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) - 1).toFixed(2));
 
-      let totalGravada: any = 0;
-      let totales: any = 0;
-
-      detalle.total = parseFloat(((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * (parseFloat(detalle.precio))) - parseFloat(detalle.porcentajeDesc)).toFixed(2));
-      detalle.subtotal = parseFloat((detalle.total / 1.18).toFixed(2));
-      detalle.igv = parseFloat(((detalle.total - detalle.subtotal)).toFixed(2));
+      const qty = parseFloat($("#cantidad-" + detalle.codigoBarra).val()) || 0;
+      const prod = this.productoPorDetalle(detalle);
+      asignarMontosDetalle(detalle, qty, parseFloat(String(detalle.precio)), prod);
       detalle.existencia = detalle.existencia  + 1;
 
-      this.detalles.forEach((element, index) => {
-        totalGravada += parseFloat(element.subtotal);
-        totales += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(totalGravada).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(totales).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(totales) - parseFloat(totalGravada)).toFixed(2));
+      this.refrescarTotalesCabecera();
+      this.aplicarReglaEmisionPorTotal();
     }
   }
 
   calcularMayoreo(){
     if(parseFloat(this.productos.precioMayor) === 0){
       this.funcionesService.showInfo('Este producto no tiene precio mayoreo');
-    }else{
-
-      this.detalles.forEach(element => {
-        if(parseInt(element.idProducto) === parseInt(this.productos.id)){
-          if(this.productos.nombreUm.trim().toLowerCase().includes('kilogramo')){
-
-            element.precio = this.productos.precioMayor;
-            element.cantidad = (parseFloat(element.total) / parseFloat(element.precio)).toFixed(3);
-            element.existencia = parseFloat(this.productos.stockActual) - parseFloat(element.cantidad)
-
-          }else{
-
-            element.precio = this.productos.precioMayor;
-            element.total = (parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)).toFixed(2);
-            element.subtotal = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18).toFixed(2);
-            element.igv = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) - ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18)).toFixed(2);
-          }
-        }
-      });
-
-      $("#codigoBarra").val('');
-      this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
-
-      let subtotal: any = 0;
-      let total: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-        total += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+      return;
     }
+
+    const cantidadInput = parseFloat($("#cantidad-" + this.productos.codigoBarra).val() || '0');
+
+    this.detalles.forEach(element => {
+      if(parseInt(element.idProducto, 10) === parseInt(this.productos.id, 10)){
+        const prod = this.productosLista.find(p => parseInt(p.id) === parseInt(element.idProducto));
+        // use precioMayor field because registro lo guarda ahí
+        let precioMayor = prod ? parseFloat(prod.precioMayor) : parseFloat(this.productos.precioMayor);
+        if (isNaN(precioMayor)) {
+          console.warn('precioMayor NaN for element', element, 'prod', prod);
+          precioMayor = 0;
+        }
+        element.precio = precioMayor;
+
+        const nombreUm = prod ? prod.nombreUm : this.productos.nombreUm;
+        const stockActual = prod ? prod.stockActual : this.productos.stockActual;
+
+        if(nombreUm.trim().toLowerCase().includes('kilogramo')){
+          element.cantidad = ((parseFloat(element.total) / parseFloat(element.precio)) || 0).toFixed(3);
+          element.existencia = ((parseFloat(stockActual) - parseFloat(element.cantidad)) || 0).toString();
+          distribuirTotalLineaEnSubtotalIgv(element, parseFloat(String(element.total)), prod || this.productos);
+        }else{
+          asignarMontosDetalle(
+            element,
+            cantidadInput,
+            parseFloat(String(element.precio)),
+            prod || this.productos
+          );
+        }
+      }
+    });
+
+    $("#codigoBarra").val('');
+    this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
+
+    this.refrescarTotalesCabecera();
+    this.aplicarReglaEmisionPorTotal();
   }
 
   carlcularMinimo(){
     if(parseFloat(this.productos.precioMinimo) === 0){
       this.funcionesService.showInfo('Este producto no tiene precio mínimo');
-    }else{
+      return;
+    }
 
+    // grab quantity once to avoid multiple DOM accesses
+    const cantidadInput = parseFloat($("#cantidad-" + this.productos.codigoBarra).val() || '0');
+
+    // perform all model mutations inside a timeout so Angular's change
+    // detector won't complain about ExpressionChangedAfterItHasBeenCheckedError
+    setTimeout(() => {
       this.detalles.forEach(element => {
-        if(parseInt(element.idProducto) === parseInt(this.productos.id)){
-          if(this.productos.nombreUm.trim().toLowerCase().includes('kilogramo')){
+        if(parseInt(element.idProducto, 10) === parseInt(this.productos.id, 10)){
+          // obtain the corresponding product from the loaded list in case
+          // this.productos no longer refers to the row being updated
+          const prod = this.productosLista.find(p => parseInt(p.id) === parseInt(element.idProducto));
+          let precioOferta = prod ? parseFloat(prod.precioMinimo) : parseFloat(this.productos.precioMinimo);
+          if (isNaN(precioOferta)) {
+            console.warn('precioOferta NaN for element', element, 'prod', prod, 'productosLista length', this.productosLista.length);
+            precioOferta = 0;
+          }
+          element.precio = precioOferta;
 
-            element.precio = this.productos.precioMinimo;
-            element.cantidad = (parseFloat(element.total) / parseFloat(element.precio)).toFixed(3);
-            element.existencia = parseFloat(this.productos.stockActual) - parseFloat(element.cantidad)
+          const nombreUm = prod ? prod.nombreUm : this.productos.nombreUm;
+          const stockActual = prod ? prod.stockActual : this.productos.stockActual;
 
+          if(nombreUm.trim().toLowerCase().includes('kilogramo')){
+            element.cantidad = ((parseFloat(element.total) / parseFloat(element.precio)) || 0).toFixed(3);
+            element.existencia = ((parseFloat(stockActual) - parseFloat(element.cantidad)) || 0).toString();
+            distribuirTotalLineaEnSubtotalIgv(element, parseFloat(String(element.total)), prod || this.productos);
           }else{
-
-            element.precio = this.productos.precioMinimo;
-            element.total = (parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)).toFixed(2);
-            element.subtotal = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18).toFixed(2);
-            element.igv = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) - ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18)).toFixed(2);
+            asignarMontosDetalle(
+              element,
+              cantidadInput,
+              parseFloat(String(element.precio)),
+              prod || this.productos
+            );
           }
         }
       });
@@ -706,55 +1190,49 @@ export class ModalRecibosComponent implements OnInit {
       $("#codigoBarra").val('');
       this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-      let subtotal: any = 0;
-      let total: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-        total += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
-    }
+      this.refrescarTotalesCabecera();
+      this.aplicarReglaEmisionPorTotal();
+    });
   }
 
   calcularMaximo(){
+    // retrieve a numeric version of the current quantity once
+    const cantidadInput = parseFloat($("#cantidad-" + this.productos.codigoBarra).val() || '0');
+
     if(parseFloat(this.productos.precioMaximo) === 0){
       this.funcionesService.showInfo('Este producto no tiene precio máximo');
-    }else{
-
-      this.detalles.forEach(element => {
-        if(parseInt(element.idProducto) === parseInt(this.productos.id)){
-          if(this.productos.nombreUm.trim().toLowerCase().includes('kilogramo')){
-
-            element.precio = this.productos.precioMaximo;
-            element.cantidad = (parseFloat(element.total) / parseFloat(element.precio)).toFixed(3);
-            element.existencia = parseFloat(this.productos.stockActual) - parseFloat(element.cantidad)
-
-          }else{
-
-            element.precio = this.productos.precioMaximo;
-            element.total = (parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)).toFixed(2);
-            element.subtotal = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18).toFixed(2);
-            element.igv = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) - ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18)).toFixed(2);
-          }
-        }
-      });
-
-      $("#codigoBarra").val('');
-      this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
-
-      let subtotal: any = 0;
-      let total: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-        total += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+      return;
     }
+
+    this.detalles.forEach(element => {
+      if(parseInt(element.idProducto, 10) === parseInt(this.productos.id, 10)){
+        const prod = this.productosLista.find(p => parseInt(p.id, 10) === parseInt(element.idProducto, 10));
+        // prefer the value from productosLista in case this.productos is stale
+        let precioMax = prod ? parseFloat(prod.precioMaximo) : parseFloat(this.productos.precioMaximo);
+        if(isNaN(precioMax)){
+          console.warn('precioMaximo NaN for element', element, 'prod', prod);
+          precioMax = 0;
+        }
+
+        element.precio = precioMax;
+
+        const nombreUm = prod ? prod.nombreUm : this.productos.nombreUm;
+        const stockActual = prod ? prod.stockActual : this.productos.stockActual;
+
+        if(nombreUm.trim().toLowerCase().includes('kilogramo')){
+          element.cantidad = ((parseFloat(element.total) / precioMax) || 0).toFixed(3);
+          element.existencia = ((parseFloat(stockActual) - parseFloat(element.cantidad)) || 0).toString();
+          distribuirTotalLineaEnSubtotalIgv(element, parseFloat(String(element.total)), prod || this.productos);
+        }else{
+          asignarMontosDetalle(element, cantidadInput, precioMax, prod || this.productos);
+        }
+      }
+    });
+
+    $("#codigoBarra").val('');
+    this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
+
+    this.refrescarTotalesCabecera();
+    this.aplicarReglaEmisionPorTotal();
   }
 }

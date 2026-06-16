@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { RecibosService } from '../service/recibos.service';
 import { FuncionesService } from '../../../../shared/services/funciones.service';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
@@ -6,6 +6,9 @@ import { RecibosDetalles } from '../model/recibosDetalles';
 import { Productos } from 'src/app/modulos/almacen/productos/model/productos';
 import { PuntosVenta } from 'src/app/modulos/mantenimientos/puntosventa/model/puntosVenta';
 import { ProductosService } from 'src/app/modulos/almacen/productos/service/Productos.service';
+import { asignarMontosDetalle, resolverCodigoAfectacionLinea } from '../utils/recibos-afectacion-igv.util';
+import { Subject, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 declare var $: any;
 
 @Component({
@@ -13,7 +16,7 @@ declare var $: any;
   templateUrl: './modalRecibosItems.component.html',
   providers: [RecibosService, ProductosService]
 })
-export class ModalRecibosItemsComponent implements OnInit {
+export class ModalRecibosItemsComponent implements OnInit, OnDestroy {
 
   @Input() fromParent: any;
 
@@ -22,11 +25,17 @@ export class ModalRecibosItemsComponent implements OnInit {
   puntoVentaStorage: string | any = localStorage.getItem('puntosVenta');
   puntoVentas: PuntosVenta = new PuntosVenta();
 
+  /** Selector SUNAT 07 al agregar ítem (por defecto según producto.igv). */
+  codigoAfectacionLinea: string = '10';
+
   // Progress Bar
   progressBar: boolean | any;
 
   //Combos
   cboProductos: Productos[] = [];
+
+  private readonly destroy$ = new Subject<void>();
+  private readonly terminosBusqueda$ = new Subject<string>();
 
   constructor(
     public reciboService: RecibosService,
@@ -41,31 +50,61 @@ export class ModalRecibosItemsComponent implements OnInit {
     $("#nombre").focus();
     this.cargarProductos();
 
+    if (this.fromParent?.opcion === 2 && this.fromParent?.items) {
+      const it = this.fromParent.items as RecibosDetalles & { codigo_afectacion_igv?: string };
+      Object.assign(this.detalles, it);
+      const sn = it.codigo_afectacion_igv;
+      if (sn && !this.detalles.codigoAfectacionIgv) {
+        this.detalles.codigoAfectacionIgv = String(sn);
+      }
+      this.codigoAfectacionLinea = resolverCodigoAfectacionLinea(this.detalles, this.productos);
+    }
+
+    this.terminosBusqueda$
+      .pipe(
+        debounceTime(350),
+        distinctUntilChanged(),
+        switchMap((term) => {
+          const t = (term ?? '').trim();
+          if (t.length < 2) {
+            this.cboProductos = [];
+            return of(null);
+          }
+          return this.productosService.buscarProductos(this.puntoVentas.id, t, { limite: 80 });
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (response: any) => {
+          if (response?.productos) {
+            this.cboProductos = response.productos;
+          } else {
+            this.cboProductos = [];
+          }
+        },
+        error: () => {
+          this.cboProductos = [];
+        }
+      });
+
     document.addEventListener("keydown", (event: any) =>{
       if (event.code === "Escape")
       {
           event.preventDefault();
           this.activeModal.dismiss();
       }
-      // if (event.code === "Enter")
-      // {
-      //     event.preventDefault();
-      //     this.saveItems();
-      // }
     });
 
   }
 
-  buscarProductos(event: any){
-    if(event !== ''){
-      if(event.length === 3){
-        this.funcionesService.showLoading();
-        this.productosService.buscarProductos(this.puntoVentas.id, event).subscribe(response => {
-          this.cboProductos = response.productos;
-          this.funcionesService.hideLoading();
-        });
-      }
-    }
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  buscarProductos(event: any): void {
+    const raw = typeof event === 'string' ? event : String(event ?? '');
+    this.terminosBusqueda$.next(raw);
   }
 
   selectEventProductos(event: Productos){
@@ -86,7 +125,10 @@ export class ModalRecibosItemsComponent implements OnInit {
       this.productos.observaciones = event.observaciones;
       this.productos.stockActual = event.stockActual;
       this.productos.nombreUm = event.nombreUm;
-      this.productos.precioMayor = event.precioMaximo;
+      this.productos.precioMayor = event.precioMayor;
+      this.productos.precioMaximo = event.precioMaximo;
+      this.productos.igv = event.igv;
+      this.codigoAfectacionLinea = resolverCodigoAfectacionLinea({}, event);
     }
   }
 
@@ -108,14 +150,18 @@ export class ModalRecibosItemsComponent implements OnInit {
     this.detalles.cantidad = 1.00;
     this.detalles.porcentajeDesc = 0.00;
     this.detalles.montoDesc = 0.00;
-    this.detalles.existencia = parseFloat(this.productos.stockActual) - 1;
+    this.detalles.existencia = parseFloat(String(this.productos.stockActual)) - 1;
     this.detalles.totalDesc = this.detalles.totalDesc == null ? 0.00 : this.detalles.totalDesc;
 
-    this.detalles.total = (1 * parseFloat(this.productos.precio)).toFixed(2);
-    this.detalles.subtotal = (parseFloat(this.detalles.total) / 1.18).toFixed(2);
-    this.detalles.igv = (parseFloat(this.detalles.total) - parseFloat(this.detalles.subtotal)).toFixed(2);
+    this.detalles.codigoAfectacionIgv = this.codigoAfectacionLinea || resolverCodigoAfectacionLinea({}, this.productos);
+    asignarMontosDetalle(
+      this.detalles,
+      1,
+      parseFloat(String(this.productos.precio)),
+      this.productos
+    );
 
-    if(parseInt(this.detalles.cantidad) === 0){
+    if(parseFloat(String(this.detalles.cantidad)) === 0){
       this.funcionesService.showError('La cantidad no puede ser 0');
     }else{
       const oReturn: any = new Object();
@@ -132,16 +178,29 @@ export class ModalRecibosItemsComponent implements OnInit {
   }
 
   cargarProductos(){
-    // let productosStorage: string | any = localStorage.getItem('productos');
-    // this.cboProductos = JSON.parse(productosStorage);
     this.productosService.cargarProductosVentas(this.puntoVentas.id).subscribe(response => {
       this.cboProductos = response.productos;
+      if (this.fromParent?.opcion === 2 && this.fromParent?.items) {
+        const id = (this.fromParent.items as RecibosDetalles).idProducto;
+        const p = this.cboProductos.find(
+          (x) => parseInt(String(x.id), 10) === parseInt(String(id), 10)
+        );
+        if (p) {
+          this.productos = p;
+          this.codigoAfectacionLinea = resolverCodigoAfectacionLinea(this.detalles, this.productos);
+        }
+      }
     });
   }
 
   calcularTotales(value: any){
-    this.detalles.subtotal = ((parseFloat(value) * parseFloat(this.productos.precio))/1.18).toFixed(2);
-    this.detalles.igv = (this.detalles.subtotal * 0.18).toFixed(2);
-    this.detalles.total = (parseFloat(this.detalles.subtotal) + parseFloat(this.detalles.igv)).toFixed(2);
+    const q = parseFloat(String(value)) || 0;
+    this.detalles.codigoAfectacionIgv = this.codigoAfectacionLinea;
+    asignarMontosDetalle(
+      this.detalles,
+      q,
+      parseFloat(String(this.productos.precio)),
+      this.productos
+    );
   }
 }

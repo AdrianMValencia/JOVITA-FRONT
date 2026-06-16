@@ -19,6 +19,11 @@ import { ModalconvertirkilosComponent } from '../modalconvertirkilos/modalconver
 import { Recibos } from '../model/recibos';
 import { RecibosDetalles } from '../model/recibosDetalles';
 import { RecibosService } from '../service/recibos.service';
+import {
+  asignarMontosDetalle,
+  distribuirTotalLineaEnSubtotalIgv,
+  recalcularTotalesCabeceraDesdeDetalles
+} from '../utils/recibos-afectacion-igv.util';
 declare var $: any;
 declare var document: any;
 
@@ -38,7 +43,7 @@ const MODALS: { [name: string]: Type<any> } = {
 export class ModaleditarrecibosComponent implements OnInit {
 
   @Input() fromParent: any;
-  displayedColumns: string[] = ['codigo', 'descripcion', 'subtotal', 'cantidad', 'total', 'existencia', 'acciones'];
+  displayedColumns: string[] = ['codigo', 'descripcion', 'afectacion', 'subtotal', 'cantidad', 'total', 'existencia', 'acciones'];
   dataSource: MatTableDataSource<RecibosDetalles> = new MatTableDataSource<RecibosDetalles>();
   items: RecibosDetalles = new RecibosDetalles(0, '', '', '', 1, '', 0.18, '', 1);
   opcion: number = 1;
@@ -146,12 +151,17 @@ export class ModaleditarrecibosComponent implements OnInit {
           this.detalles.forEach(element => {
             let productos: Productos = this.productosLista.filter(x => parseInt(x.id) === parseInt(element.idProducto))[0];
 
-            element.cantidad = parseFloat(element.cantidad).toFixed(2);
-            element.existencia = (parseFloat(productos.stockActual) - parseFloat(element.cantidad)).toFixed(2);
-            total = parseFloat(total) + parseFloat(element.total);
+            element.cantidad = parseFloat(String(element.cantidad)).toFixed(2);
+            element.existencia = (parseFloat(String(productos.stockActual)) - parseFloat(String(element.cantidad))).toFixed(2);
+            const sn = (element as any).codigo_afectacion_igv;
+            if (sn && !element.codigoAfectacionIgv) {
+              element.codigoAfectacionIgv = String(sn);
+            }
+            total = parseFloat(String(total)) + parseFloat(String(element.total));
           });
           this.formGroup.get('total').setValue((total).toFixed(2));
           this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
+          this.refrescarTotalesCabecera();
         }
       }
 
@@ -159,9 +169,56 @@ export class ModaleditarrecibosComponent implements OnInit {
     });
   }
 
-  highlight(row: any) {
-    this.selectedRowIndex = row.codigoBarra;
-    $("#cantidad-" + row.codigoBarra).focus();
+  highlight(row: any, event?: MouseEvent) {
+    const target = event?.target as HTMLElement | undefined;
+    if (target?.closest('select, input, button, textarea, a, label')) {
+      return;
+    }
+    const codigoBarra = typeof row === 'string' ? row : row?.codigoBarra;
+    if (!codigoBarra) {
+      return;
+    }
+    this.selectedRowIndex = codigoBarra;
+    $("#cantidad-" + codigoBarra).focus();
+  }
+
+  private productoPorDetalle(detalle: RecibosDetalles): Productos | undefined {
+    return this.productosLista.find(
+      (p) =>
+        parseInt(String(p.id), 10) === parseInt(String(detalle.idProducto), 10) &&
+        parseInt(String(p.idPuntoVenta), 10) === this.puntoVentas.id
+    );
+  }
+
+  private refrescarTotalesCabecera(): void {
+    const pctRaw = this.formGroup.get('porcentajeDesc')?.value;
+    const pct =
+      pctRaw !== '' && pctRaw != null && String(pctRaw) !== '0'
+        ? parseFloat(String(pctRaw))
+        : NaN;
+    const opciones = !isNaN(pct) && pct ? { porcentajeDescGlobal: pct } : undefined;
+    const t = recalcularTotalesCabeceraDesdeDetalles(
+      this.detalles,
+      (d) => this.productoPorDetalle(d),
+      opciones
+    );
+    this.formGroup.get('totalGravada').setValue(t.totalGravada);
+    this.formGroup.get('totalIgv').setValue(t.totalIgv);
+    this.formGroup.get('total').setValue(t.total);
+    if (t.montoDesc !== undefined) {
+      this.formGroup.get('montoDesc').setValue(t.montoDesc);
+    } else if (!opciones) {
+      this.formGroup.get('montoDesc').setValue('0.00');
+    }
+  }
+
+  onCodigoAfectacionLineaChange(detalle: RecibosDetalles, codigo: string): void {
+    detalle.codigoAfectacionIgv = codigo;
+    const qty =
+      parseFloat(String($('#cantidad-' + detalle.codigoBarra).val() ?? detalle.cantidad)) || 0;
+    const precio = parseFloat(String(detalle.precio ?? 0)) || 0;
+    asignarMontosDetalle(detalle, qty, precio, this.productoPorDetalle(detalle));
+    this.refrescarTotalesCabecera();
   }
 
   calcular(detalle:RecibosDetalles){
@@ -169,30 +226,20 @@ export class ModaleditarrecibosComponent implements OnInit {
     productosLista = productosLista.filter(x => x.codigoBarra === detalle.codigoBarra && parseInt(x.idPuntoVenta) === this.puntoVentas.id);
     let productos: Productos = productosLista[0];
 
-    if(parseFloat(productos.stockActual) <= parseFloat(productos.stockAlerta)){
+    if(parseFloat(String(productos.stockActual)) <= parseFloat(String(productos.stockAlerta))){
       this.funcionesService.showError('El producto ' + productos.nombre + ' se esta quedando sin stock. Stock Actual: ' + productos.stockActual);
     }
 
+    const qty = parseFloat($("#cantidad-" + detalle.codigoBarra).val()) || 0;
+    const precioUnit = parseFloat(String(productos.precio)) || 0;
     this.detalles.forEach(element => {
       if(element.idProducto === productos.id){
-        // element.cantidad = (parseFloat($("#cantidad-" + detalle.codigoBarra).val())).toFixed(2);
-        element.total = ((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * parseFloat(productos.precio)).toFixed(2));
-        element.subtotal = ((((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * parseFloat(productos.precio)) / 1.18)).toFixed(2));
-        element.igv = (((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * parseFloat(productos.precio)) - ((((parseFloat($("#cantidad-" + detalle.codigoBarra).val())) * parseFloat(productos.precio)) / 1.18))).toFixed(2));
-        element.existencia = parseFloat(productos.stockActual) - parseFloat($("#cantidad-" + detalle.codigoBarra).val())
+        asignarMontosDetalle(element, qty, precioUnit, productos);
+        element.existencia = parseFloat(String(productos.stockActual)) - qty;
       }
     });
 
-    let subtotal: any = 0;
-    let total: any = 0;
-    this.detalles.forEach(element => {
-      subtotal += parseFloat(element.subtotal);
-      total += parseFloat(element.total);
-    });
-
-    this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-    this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-    this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+    this.refrescarTotalesCabecera();
   }
 
   onKeydown(event: any, indice: number) {
@@ -268,10 +315,11 @@ export class ModaleditarrecibosComponent implements OnInit {
                   this.detalles.forEach(element => {
                     if(element.idProducto === result.items.idProducto){
                       contador += 1;
-                      element.cantidad = (parseFloat(element.cantidad) + parseFloat(result.items.cantidad)).toFixed(2);
-                      element.total = (parseFloat(element.cantidad) * parseFloat(element.precio)).toFixed(2);
-                      element.subtotal = (parseFloat(element.total) / 1.18).toFixed(2);
-                      element.igv = (parseFloat(element.total) - parseFloat(element.subtotal)).toFixed(2);
+                      const cant = parseFloat(String(element.cantidad)) + parseFloat(String(result.items.cantidad));
+                      element.cantidad = cant.toFixed(2);
+                      const prod =
+                        this.productoPorDetalle(element) || (result.productos as Productos);
+                      asignarMontosDetalle(element, cant, parseFloat(String(element.precio)), prod);
                     }
                   });
 
@@ -289,16 +337,7 @@ export class ModaleditarrecibosComponent implements OnInit {
 
               this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-              let subtotal: any = 0;
-              let total: any = 0;
-              this.detalles.forEach(element => {
-                subtotal += parseFloat(element.subtotal);
-                total += parseFloat(element.total);
-              });
-
-              this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-              this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-              this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+              this.refrescarTotalesCabecera();
             }
           }
           break;
@@ -325,7 +364,7 @@ export class ModaleditarrecibosComponent implements OnInit {
           detalles = this.detalles.filter(x => parseInt(x.idProducto) === parseInt(productos.id));
 
           if(detalles.length === 0){
-            this.detalles.push({
+            const row: RecibosDetalles = {
               idRecibo: 0,
               idProducto: productos.id,
               codigoBarra: productos.codigoBarra,
@@ -333,21 +372,24 @@ export class ModaleditarrecibosComponent implements OnInit {
               detalle: '',
               precio: productos.precio,
               cantidad: parseFloat(cantidad).toFixed(2),
-              total: ((parseFloat(cantidad) * parseFloat(productos.precio)).toFixed(2)),
-              subtotal: ((((parseFloat(cantidad) * parseFloat(productos.precio)) / 1.1)).toFixed(2)),
-              igv: (((parseFloat(cantidad) * parseFloat(productos.precio)) - (((parseFloat(cantidad) * parseFloat(productos.precio)) / 1.1))).toFixed(2)),
               porcentajeDesc: 0.00,
               totalDesc: 0.00,
-              existencia: productos.stockActual - parseFloat(cantidad)
-            });
+              existencia: parseFloat(String(productos.stockActual)) - parseFloat(cantidad)
+            } as RecibosDetalles;
+            asignarMontosDetalle(
+              row,
+              parseFloat(cantidad),
+              parseFloat(String(productos.precio)),
+              productos
+            );
+            this.detalles.push(row);
           }else{
 
             this.detalles.forEach(element => {
               if(element.idProducto === productos.id){
-                element.cantidad =( parseFloat(cantidad) + parseFloat(element.cantidad)).toFixed(2);
-                element.total = ((parseFloat(element.cantidad) * parseFloat(productos.precio)).toFixed(2));
-                element.subtotal = ((((parseFloat(element.cantidad) * parseFloat(productos.precio)) / 1.18)).toFixed(2));
-                element.igv = (((parseFloat(element.cantidad) * parseFloat(productos.precio)) - (((parseFloat(element.cantidad) * parseFloat(productos.precio)) / 1.18))).toFixed(2));
+                element.cantidad =( parseFloat(cantidad) + parseFloat(String(element.cantidad))).toFixed(2);
+                const cant = parseFloat(String(element.cantidad));
+                asignarMontosDetalle(element, cant, parseFloat(String(productos.precio)), productos);
                 element.existencia = element.existencia - parseFloat(cantidad)
               }
             });
@@ -357,16 +399,7 @@ export class ModaleditarrecibosComponent implements OnInit {
           this.selectedRowIndex = productos.codigoBarra;
           this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-          let subtotal: any = 0;
-          let total: any = 0;
-          this.detalles.forEach(element => {
-            subtotal += parseFloat(element.subtotal);
-            total += parseFloat(element.total);
-          });
-
-          this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-          this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-          this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+          this.refrescarTotalesCabecera();
         }
         this.funcionesService.hideLoading();
         this.progressBar = false;
@@ -394,16 +427,7 @@ export class ModaleditarrecibosComponent implements OnInit {
             this.funcionesService.showSuccess(response.message);
             this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-            let subtotal: any = 0;
-            let total: any = 0;
-            this.detalles.forEach(element => {
-              subtotal += parseFloat(element.subtotal);
-              total += parseFloat(element.total);
-            });
-
-            this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-            this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-            this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+            this.refrescarTotalesCabecera();
 
             const oReturn: any = new Object();
             oReturn['value'] = 'loadAgain';
@@ -434,29 +458,12 @@ export class ModaleditarrecibosComponent implements OnInit {
     this.progressBar = true;
 
     if(value !== '' && value !== '0'){
-
-      let subtotal: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-      });
-      this.formGroup.get("montoDesc").setValue((parseFloat(subtotal) * (parseFloat(value) / 100)).toFixed(2));
-
-      this.formGroup.get("totalGravada").setValue((parseFloat(subtotal) - parseFloat(this.formGroup.get("montoDesc").value)).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((this.formGroup.get("totalGravada").value * 0.18).toFixed(2));
-      this.formGroup.get("total").setValue((parseFloat(this.formGroup.get("totalGravada").value) + parseFloat(this.formGroup.get("totalIgv").value)).toFixed(2));
-
+      this.formGroup.patchValue({ porcentajeDesc: value });
     }else{
-
-      let subtotal: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-      });
-
-      this.formGroup.get("montoDesc").setValue(0.00);
-      this.formGroup.get("totalGravada").setValue(subtotal.toFixed(2));
-      this.formGroup.get("totalIgv").setValue((this.formGroup.get("totalGravada").value * 0.18).toFixed(2));
-      this.formGroup.get("total").setValue((parseFloat(this.formGroup.get("totalGravada").value) + parseFloat(this.formGroup.get("totalIgv").value)).toFixed(2));
+      this.formGroup.patchValue({ porcentajeDesc: '', montoDesc: '0.00' });
     }
+
+    this.refrescarTotalesCabecera();
 
     this.funcionesService.hideLoading();
     this.progressBar = false;
@@ -490,30 +497,28 @@ export class ModaleditarrecibosComponent implements OnInit {
             this.selectedRowIndex = productos.codigoBarra;
 
             if(detalles.length === 0){
-              this.detalles.push({
+              const row: RecibosDetalles = {
                 idRecibo: 0,
                 idProducto: productos.id,
                 codigoBarra: productos.codigoBarra,
                 nombre: productos.nombre,
                 detalle: '',
                 precio: productos.precio,
-                cantidad: 1.00,
-                total: ((1 * parseFloat(productos.precio)).toFixed(2)),
-                subtotal: ((((1 * parseFloat(productos.precio)) / 1.1)).toFixed(2)),
-                igv: (((1 * parseFloat(productos.precio)) - (((1 * parseFloat(productos.precio)) / 1.1))).toFixed(2)),
+                cantidad: '1.00',
                 porcentajeDesc: 0.00,
                 totalDesc: 0.00,
-                existencia: parseFloat(productos.stockActual)
-              });
+                existencia: parseFloat(String(productos.stockActual))
+              } as RecibosDetalles;
+              asignarMontosDetalle(row, 1, parseFloat(String(productos.precio)), productos);
+              this.detalles.push(row);
             }else{
 
               this.detalles.forEach(element => {
                 if(element.idProducto === productos.id){
-                  element.cantidad = (1 + parseFloat(element.cantidad)).toFixed(2);
-                  element.total = ((element.cantidad * parseFloat(productos.precio)).toFixed(2));
-                  element.subtotal = ((((element.cantidad * parseFloat(productos.precio)) / 1.18)).toFixed(2));
-                  element.igv = (((element.cantidad * parseFloat(productos.precio)) - ((((element.cantidad) * parseFloat(productos.precio)) / 1.18))).toFixed(2));
-                  element.existencia = element.existencia - 1
+                  const cant = 1 + parseFloat(String(element.cantidad));
+                  element.cantidad = cant.toFixed(2);
+                  asignarMontosDetalle(element, cant, parseFloat(String(productos.precio)), productos);
+                  element.existencia = parseFloat(String(element.existencia)) - 1
                 }
               });
             }
@@ -522,16 +527,7 @@ export class ModaleditarrecibosComponent implements OnInit {
             $("#codigoBarra").focus();
             $("#codigoBarra").val('');
 
-            let subtotal: any = 0;
-            let total: any = 0;
-            this.detalles.forEach(element => {
-              subtotal += parseFloat(element.subtotal);
-              total += parseFloat(element.total);
-            });
-
-            this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-            this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-            this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+            this.refrescarTotalesCabecera();
           }
         // });
       }
@@ -552,8 +548,15 @@ export class ModaleditarrecibosComponent implements OnInit {
       }else{
 
         this.detalles.forEach(element => {
-          element.precio = parseFloat(element.precio).toFixed(2);
-          element.cantidad = parseFloat($("#cantidad-" + element.codigoBarra).val()).toFixed(2);
+          element.precio = parseFloat(String(element.precio)).toFixed(2);
+          const q = parseFloat(String($("#cantidad-" + element.codigoBarra).val())).toFixed(2);
+          element.cantidad = q;
+          asignarMontosDetalle(
+            element,
+            parseFloat(q),
+            parseFloat(String(element.precio)),
+            this.productoPorDetalle(element)
+          );
         });
 
         this.recibos.total = this.formGroup.get("total").value;
@@ -588,21 +591,12 @@ export class ModaleditarrecibosComponent implements OnInit {
     }else{
 
       $("#cantidad-" + detalle.codigoBarra).val((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) + 1).toFixed(2));
-      let totalGravada: any = 0;
-      let totales: any = 0;
-      detalle.total = parseFloat(((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * (parseFloat(detalle.precio))) - parseFloat(detalle.porcentajeDesc)).toFixed(2));
-      detalle.subtotal = parseFloat((detalle.total / 1.18).toFixed(2));
-      detalle.igv = parseFloat(((detalle.total - detalle.subtotal)).toFixed(2));
+      const qty = parseFloat($("#cantidad-" + detalle.codigoBarra).val()) || 0;
+      const prod = this.productoPorDetalle(detalle);
+      asignarMontosDetalle(detalle, qty, parseFloat(String(detalle.precio)), prod);
       detalle.existencia = detalle.existencia  - 1;
 
-      this.detalles.forEach((element, index) => {
-        totalGravada += parseFloat(element.subtotal);
-        totales += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(totalGravada).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(totales).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(totales) - parseFloat(totalGravada)).toFixed(2));
+      this.refrescarTotalesCabecera();
     }
   }
 
@@ -610,22 +604,12 @@ export class ModaleditarrecibosComponent implements OnInit {
     if($("#cantidad-" + detalle.codigoBarra).val() > 1){
       $("#cantidad-" + detalle.codigoBarra).val((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) - 1).toFixed(2));
 
-      let totalGravada: any = 0;
-      let totales: any = 0;
-
-      detalle.total = parseFloat(((parseFloat($("#cantidad-" + detalle.codigoBarra).val()) * (parseFloat(detalle.precio))) - parseFloat(detalle.porcentajeDesc)).toFixed(2));
-      detalle.subtotal = parseFloat((detalle.total / 1.18).toFixed(2));
-      detalle.igv = parseFloat(((detalle.total - detalle.subtotal)).toFixed(2));
+      const qty = parseFloat($("#cantidad-" + detalle.codigoBarra).val()) || 0;
+      const prod = this.productoPorDetalle(detalle);
+      asignarMontosDetalle(detalle, qty, parseFloat(String(detalle.precio)), prod);
       detalle.existencia = detalle.existencia  + 1;
 
-      this.detalles.forEach((element, index) => {
-        totalGravada += parseFloat(element.subtotal);
-        totales += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(totalGravada).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(totales).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(totales) - parseFloat(totalGravada)).toFixed(2));
+      this.refrescarTotalesCabecera();
     }
   }
 
@@ -634,28 +618,20 @@ export class ModaleditarrecibosComponent implements OnInit {
       this.funcionesService.showInfo('Este producto no tiene precio mayoreo');
     }else{
 
+      const qty = parseFloat($("#cantidad-" + this.productos.codigoBarra).val() || '0');
+
       this.detalles.forEach(element => {
-        if(parseInt(element.idProducto) === parseInt(this.productos.id)){
+        if(parseInt(String(element.idProducto), 10) === parseInt(String(this.productos.id), 10)){
           element.precio = this.productos.precioMayor;
-          element.total = (parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)).toFixed(2);
-          element.subtotal = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18).toFixed(2);
-          element.igv = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) - ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18)).toFixed(2);
+          const prod = this.productoPorDetalle(element);
+          asignarMontosDetalle(element, qty, parseFloat(String(element.precio)), prod || this.productos);
         }
       });
 
       $("#codigoBarra").val('');
       this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-      let subtotal: any = 0;
-      let total: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-        total += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+      this.refrescarTotalesCabecera();
     }
   }
 
@@ -664,28 +640,20 @@ export class ModaleditarrecibosComponent implements OnInit {
       this.funcionesService.showInfo('Este producto no tiene precio mínimo');
     }else{
 
+      const qty = parseFloat($("#cantidad-" + this.productos.codigoBarra).val() || '0');
+
       this.detalles.forEach(element => {
-        if(parseInt(element.idProducto) === parseInt(this.productos.id)){
+        if(parseInt(String(element.idProducto), 10) === parseInt(String(this.productos.id), 10)){
           element.precio = this.productos.precioMinimo;
-          element.total = (parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)).toFixed(2);
-          element.subtotal = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18).toFixed(2);
-          element.igv = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) - ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18)).toFixed(2);
+          const prod = this.productoPorDetalle(element);
+          asignarMontosDetalle(element, qty, parseFloat(String(element.precio)), prod || this.productos);
         }
       });
 
       $("#codigoBarra").val('');
       this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-      let subtotal: any = 0;
-      let total: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-        total += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+      this.refrescarTotalesCabecera();
     }
   }
 
@@ -694,28 +662,20 @@ export class ModaleditarrecibosComponent implements OnInit {
       this.funcionesService.showInfo('Este producto no tiene precio máximo');
     }else{
 
+      const qty = parseFloat($("#cantidad-" + this.productos.codigoBarra).val() || '0');
+
       this.detalles.forEach(element => {
-        if(parseInt(element.idProducto) === parseInt(this.productos.id)){
+        if(parseInt(String(element.idProducto), 10) === parseInt(String(this.productos.id), 10)){
           element.precio = this.productos.precioMaximo;
-          element.total = (parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)).toFixed(2);
-          element.subtotal = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18).toFixed(2);
-          element.igv = ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) - ((parseFloat($("#cantidad-" + this.productos.codigoBarra).val()) * parseFloat(element.precio)) / 1.18)).toFixed(2);
+          const prod = this.productoPorDetalle(element);
+          asignarMontosDetalle(element, qty, parseFloat(String(element.precio)), prod || this.productos);
         }
       });
 
       $("#codigoBarra").val('');
       this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
 
-      let subtotal: any = 0;
-      let total: any = 0;
-      this.detalles.forEach(element => {
-        subtotal += parseFloat(element.subtotal);
-        total += parseFloat(element.total);
-      });
-
-      this.formGroup.get("totalGravada").setValue(parseFloat(subtotal).toFixed(2));
-      this.formGroup.get("total").setValue(parseFloat(total).toFixed(2));
-      this.formGroup.get("totalIgv").setValue((parseFloat(total) - parseFloat(subtotal)).toFixed(2));
+      this.refrescarTotalesCabecera();
     }
   }
 

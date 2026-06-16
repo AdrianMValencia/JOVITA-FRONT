@@ -281,6 +281,17 @@ export class FuncionesService {
     this.toastr.success('', title);
   }
 
+  /** Toast de éxito tras cobrar: título fijo y cuerpo multilínea (CPE, ticket POS, etc.). */
+  showSuccessCobroDetalle(mensajeMultilinea: string): void {
+    this.toastr.success(mensajeMultilinea, 'Venta registrada', {
+      timeOut: 16000,
+      closeButton: true,
+      tapToDismiss: true,
+      toastClass: 'ngx-toastr ngx-toastr-success toast-cobro-detalle',
+      messageClass: 'toast-message toast-cobro-detalle-msg'
+    });
+  }
+
   showWarning(title: string) {
     this.toastr.warning('', title);
   }
@@ -291,6 +302,24 @@ export class FuncionesService {
 
   showInfo(title: string) {
     this.toastr.info('', title);
+  }
+
+  /**
+   * Avisos tras sincronizar eFact: estilo neutro (no warning), texto multilínea legible.
+   */
+  showSincronizacionEfactDetalle(lineas: string[]): void {
+    if (!lineas.length) {
+      return;
+    }
+    const mensaje = lineas.join('\n');
+    this.toastr.info(mensaje, 'Sincronización eFact', {
+      timeOut: 22000,
+      closeButton: true,
+      tapToDismiss: true,
+      toastClass: 'ngx-toastr toastr-info ngx-toastr-info toast-efact-sync',
+      titleClass: 'toast-title toast-efact-sync-title',
+      messageClass: 'toast-message toast-efact-sync-message'
+    });
   }
 
   swalInfo(message: string) {

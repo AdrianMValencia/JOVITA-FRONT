@@ -1,0 +1,6 @@
+/* Estilos básicos para el reporte */
+.ibox { border: 1px solid #e7eaec; margin-bottom: 20px; }
+.ibox-title { background: #f3f3f4; padding: 12px; border-bottom: 1px solid #e7eaec; }
+.ibox-content { padding: 15px; }
+.table-responsive { max-height: 420px; overflow: auto; }
+.btn { min-width: 150px; }

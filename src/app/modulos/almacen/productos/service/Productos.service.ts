@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../../../environments/environment.prod';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { Productos } from '../model/productos';
 import { tap } from 'rxjs/operators';
@@ -22,12 +22,34 @@ export class ProductosService {
     return this.http.get(this.urlBase + '/' + id);
   }
 
+  obtenerProductosPaginado(id: number, page: number, perPage: number): Observable<any> {
+    return this.http.get(`${this.urlBase}/${id}?page=${page}&perPage=${perPage}`);
+  }
+
   cargarProductosVentas(id: number): Observable<any> {
     return this.http.get(environment.BASE_URL + 'cargarProductosVentas/' + id);
   }
 
-  buscarProductos(id: number, texto: string): Observable<any> {
-    return this.http.get(this.urlBase + '/buscar/' + id + '/' + texto);
+  /**
+   * Búsqueda POS: texto vacío → lista vacía sin llamar al API.
+   * Query opcional `limite` (máx. 200 en backend).
+   */
+  buscarProductos(
+    idPuntoVenta: number,
+    texto: string,
+    opciones?: { limite?: number }
+  ): Observable<any> {
+    const t = (texto ?? '').trim();
+    if (!t) {
+      return of({ productos: [], status: 200 });
+    }
+    const encoded = encodeURIComponent(t);
+    let params = new HttpParams();
+    if (opciones?.limite != null && opciones.limite > 0) {
+      const lim = Math.min(200, Math.max(1, Math.floor(opciones.limite)));
+      params = params.set('limite', String(lim));
+    }
+    return this.http.get(`${this.urlBase}/buscar/${idPuntoVenta}/${encoded}`, { params });
   }
 
   obtenerProductosCodigoBarra(codigoBarras: string, id: number): Observable<any> {

@@ -15,7 +15,12 @@ export const ROUTING_COMPONENTS = [
   FooterComponent
 ];
 
-const routes: Routes = [];
+const routes: Routes = [
+  {
+    path: 'comprobantes',
+    loadChildren: () => import('./modulos/comprobantes/comprobantes.module').then(m => m.ComprobantesModule)
+  }
+];
 
 @NgModule({
   imports: [RouterModule.forRoot(routes, {useHash: true})],

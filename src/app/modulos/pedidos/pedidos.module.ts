@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { ReactiveFormsModule,FormsModule } from '@angular/forms';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { NgSelectModule } from '@ng-select/ng-select';
 import { AutocompleteLibModule } from 'angular-ng-autocomplete';
@@ -24,7 +23,6 @@ const libreria = [
     PedidosRutasModule,
     ReactiveFormsModule,
     FormsModule,
-    BrowserAnimationsModule,
     libreria,
   ],
   declarations: [PEDIDOS_RUTAS_COMPONENTES],

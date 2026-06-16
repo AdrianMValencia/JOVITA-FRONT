@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { Productos } from 'src/app/modulos/almacen/productos/model/productos';
@@ -7,13 +7,15 @@ import { PuntosVenta } from 'src/app/modulos/mantenimientos/puntosventa/model/pu
 import { FuncionesService } from 'src/app/shared/services/funciones.service';
 
 import { RecibosService } from '../service/recibos.service';
+import { Subject, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 declare var $: any;
 
 @Component({
   selector: 'app-modalItemsConsultar',
   templateUrl: './modalItemsConsultar.component.html'
 })
-export class ModalItemsConsultarComponent implements OnInit {
+export class ModalItemsConsultarComponent implements OnInit, OnDestroy {
 
  @Input() fromParent: any;
 
@@ -28,6 +30,9 @@ export class ModalItemsConsultarComponent implements OnInit {
   //Combos
   cboProductos: Productos[] = [];
 
+  private readonly destroy$ = new Subject<void>();
+  private readonly terminosBusqueda$ = new Subject<string>();
+
   constructor(
     public reciboService: RecibosService,
     private productosService: ProductosService,
@@ -41,6 +46,33 @@ export class ModalItemsConsultarComponent implements OnInit {
     $("#nombre").focus();
     this.cargarProductos();
 
+    this.terminosBusqueda$
+      .pipe(
+        debounceTime(350),
+        distinctUntilChanged(),
+        switchMap((term) => {
+          const t = (term ?? '').trim();
+          if (t.length < 2) {
+            this.cboProductos = [];
+            return of(null);
+          }
+          return this.productosService.buscarProductos(this.puntoVentas.id, t, { limite: 80 });
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (response: any) => {
+          if (response?.productos) {
+            this.cboProductos = response.productos;
+          } else {
+            this.cboProductos = [];
+          }
+        },
+        error: () => {
+          this.cboProductos = [];
+        }
+      });
+
     document.addEventListener("keydown", (event: any) =>{
       if (event.code === "Escape")
       {
@@ -49,6 +81,11 @@ export class ModalItemsConsultarComponent implements OnInit {
       }
     });
 
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
     onEnter(event: any){
@@ -99,16 +136,9 @@ export class ModalItemsConsultarComponent implements OnInit {
       }
     }
 
-  buscarProductos(event: any){
-    if(event !== ''){
-      if(event.length === 3){
-        this.funcionesService.showLoading();
-        this.productosService.buscarProductos(this.puntoVentas.id, event).subscribe(response => {
-          this.cboProductos = response.productos;
-          this.funcionesService.hideLoading();
-        });
-      }
-    }
+  buscarProductos(event: any): void {
+    const raw = typeof event === 'string' ? event : String(event ?? '');
+    this.terminosBusqueda$.next(raw);
   }
 
   selectEventProductos(event: Productos){
@@ -128,7 +158,9 @@ export class ModalItemsConsultarComponent implements OnInit {
     this.productos.observaciones = event.observaciones;
     this.productos.stockActual = event.stockActual;
     this.productos.nombreUm = event.nombreUm;
-    this.productos.precioMayor = event.precioMaximo;
+    this.productos.precioMayor = event.precioMayor;
+    this.productos.precioMaximo = event.precioMaximo;
+    this.productos.igv = event.igv;
   }
 
   cargarProductos(){

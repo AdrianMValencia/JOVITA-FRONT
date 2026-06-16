@@ -55,9 +55,10 @@
                 </ng-template>
               </div>
             </div>
-            <div class="col-lg-6 form-group">
+            <div class="col-lg-3 form-group">
               <label>Número</label>
-              <input type="text" formControlName="numeroDoi" maxlength="15" class="form-control">
+              <input type="text" formControlName="numeroDoi" maxlength="15" class="form-control"
+                (keydown.enter)="$event.preventDefault(); $event.stopPropagation(); consultaSUNAT()">
               <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('numeroDoi').hasError('required')">
                 Obligatorio.
               </div>
@@ -68,16 +69,21 @@
                 Máximo 15 caracteres.
               </div>
             </div>
+            <div class="col-lg-3 mt-3 form-group">
+              <button class="btn btn-primary dim" type="button" (click)="consultaSUNAT()">
+                <i class="fa fa-search"></i> Consulta de DNI o RUC
+              </button>
+            </div>
             <div class="col-lg-6 form-group">
               <label>Nombre</label>
-              <input type="text" formControlName="nombre" class="form-control">
+              <input type="text" formControlName="nombre" class="form-control" [readonly]="readonlyCamposConsulta">
               <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('nombre').invalid && (formGroup.get('nombre').dirty || formGroup.get('nombre').touched)">
                 Obligatorio.
               </div>
             </div>
             <div class="col-lg-6 form-group">
               <label>Razón Social</label>
-              <input type="text" formControlName="razonsocial" class="form-control">
+              <input type="text" formControlName="razonsocial" class="form-control" [readonly]="readonlyCamposConsulta">
               <div class="text-danger font-weight-bolder" *ngIf="formGroup.get('razonsocial').invalid && (formGroup.get('razonsocial').dirty || formGroup.get('razonsocial').touched)">
                 Obligatorio.
               </div>

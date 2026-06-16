@@ -1,0 +1,84 @@
+.kdx-filtros .form-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+
+.kdx-filtros-row {
+  margin-bottom: 0.5rem;
+}
+
+.kdx-filtros-row:last-of-type {
+  margin-bottom: 0.25rem;
+}
+
+.kdx-filtros-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: flex-end;
+  min-height: 38px;
+}
+
+.kdx-filtros-ayuda {
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e7eaec;
+}
+
+.kdx-filtros-producto {
+  padding: 0.35rem 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.kdx-tabla-wrap {
+  max-height: 55vh;
+  overflow: auto;
+}
+
+.kdx-mat-table {
+  min-width: 1200px;
+  font-size: 11px;
+}
+
+.kdx-th-compact,
+.kdx-td-compact {
+  white-space: nowrap;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+.kdx-fila-producto {
+  cursor: pointer;
+}
+
+.kdx-fila-producto:hover {
+  background-color: #f0f7ff;
+}
+
+.kdx-fila-producto-activa {
+  background-color: #e3f2fd !important;
+  font-weight: 500;
+}
+
+.kdx-resumen .badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.fila-saldo-inicial {
+  font-weight: 600;
+  background-color: #f8f9fa;
+}
+
+.fila-ajuste {
+  background-color: #fff8e1;
+}
+
+.kdx-detalle .kdx-tabla-wrap {
+  max-height: 50vh;
+}

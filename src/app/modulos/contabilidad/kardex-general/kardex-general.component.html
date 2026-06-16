@@ -1,0 +1,207 @@
+<div class="container-fluid py-3">
+  <div class="ibox">
+    <div class="ibox-title">
+      <h5>Kardex general</h5>
+    </div>
+    <div class="ibox-content">
+      <form [formGroup]="fg" class="kdx-filtros mb-3">
+        <div class="row kdx-filtros-row align-items-end g-2">
+          <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+            <label class="form-label">Fecha inicio</label>
+            <input type="date" class="form-control" formControlName="fechaInicio" />
+          </div>
+          <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+            <label class="form-label">Fecha fin</label>
+            <input type="date" class="form-control" formControlName="fechaFin" />
+          </div>
+          <div class="col-12 col-sm-8 col-md-6 col-lg-4">
+            <label class="form-label">Punto de venta <span class="text-danger">*</span></label>
+            <select class="form-control" formControlName="idPuntoVenta" (change)="onPuntoVentaChange()">
+              <option value="">Seleccione…</option>
+              <option *ngFor="let pv of puntosVenta" [value]="pv.id">{{ pv.nombre }}</option>
+            </select>
+          </div>
+          <div class="col-12 col-lg-4 kdx-filtros-acciones">
+            <button type="button" class="btn btn-outline-secondary" (click)="refrescarFiltros()" [disabled]="loading">
+              Refrescar filtros
+            </button>
+            <button type="button" class="btn btn-primary" (click)="consultar()" [disabled]="loading">
+              <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+              Consultar
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-success"
+              (click)="descargarExcel()"
+              [disabled]="descargandoExcel"
+            >
+              <span *ngIf="descargandoExcel" class="spinner-border spinner-border-sm me-1"></span>
+              Excel
+            </button>
+          </div>
+        </div>
+
+        <div class="row kdx-filtros-row align-items-end g-2">
+          <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label">Código (parcial)</label>
+            <input
+              type="text"
+              class="form-control"
+              formControlName="codigo"
+              (input)="onFiltroProductoChange()"
+              placeholder="Ej. 77012"
+            />
+          </div>
+          <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label">Nombre (parcial)</label>
+            <input
+              type="text"
+              class="form-control"
+              formControlName="nombre"
+              (input)="onFiltroProductoChange()"
+              placeholder="Ej. ARROZ"
+            />
+          </div>
+          <div class="col-12 col-sm-6 col-md-4 col-lg-2 d-flex align-items-end pb-1">
+            <mat-checkbox formControlName="incluirSaldoInicial" color="primary">
+              Incluir saldo inicial
+            </mat-checkbox>
+          </div>
+          <div class="col-12 col-md-8 col-lg-4">
+            <label class="form-label">Código de barras (exacto)</label>
+            <div class="input-group">
+              <input
+                type="text"
+                class="form-control"
+                formControlName="codigoBarra"
+                (input)="onFiltroProductoChange()"
+                (keyup)="onCodigoBarraKeyup($event)"
+                placeholder="Coincidencia exacta"
+              />
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                (click)="resolverProducto()"
+                [disabled]="buscandoProducto"
+                title="Resolver producto (envía idProducto)"
+              >
+                <span *ngIf="buscandoProducto" class="spinner-border spinner-border-sm"></span>
+                <span *ngIf="!buscandoProducto">Buscar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="kdx-filtros-ayuda">
+          <small class="text-muted d-block">
+            Sin filtros de producto se listan <strong>todos los productos</strong> paginados (100 por defecto, máx. 500).
+            Código/nombre (parcial) tiene prioridad. Código de barras exacto sin Buscar consulta por coincidencia exacta;
+            con <strong>Buscar</strong> se usa <code>idProducto</code>.
+            <strong>Doble clic en una fila</strong> de la cabecera carga el detalle de movimientos del producto.
+            <strong>Excel</strong> exporta cabecera y detalle sin paginación.
+          </small>
+          <small class="text-muted d-block mt-1">
+            Los costos de la cabecera son <strong>totales del periodo</strong> (no unitarios).
+          </small>
+          <div *ngIf="productoNombre || idProductoResuelto" class="kdx-filtros-producto mt-1">
+            <span *ngIf="productoNombre" class="text-dark">
+              <strong>Producto:</strong> {{ productoNombre }}
+            </span>
+            <span *ngIf="idProductoResuelto && !productoNombre" class="text-success">
+              Producto resuelto (ID {{ idProductoResuelto }})
+            </span>
+          </div>
+        </div>
+      </form>
+
+      <div *ngIf="respuesta" class="mb-3 kdx-resumen">
+        <p class="mb-1">
+          <strong>{{ respuesta.reporte || 'KARDEX GENERAL' }}</strong>
+          <span *ngIf="paginacion" class="badge bg-secondary ms-2">
+            {{ paginatorLength }} productos
+          </span>
+        </p>
+        <p class="text-muted small mb-1" *ngIf="respuesta.periodo">
+          Periodo: {{ respuesta.periodo.fechaInicio }} — {{ respuesta.periodo.fechaFin }}
+        </p>
+        <p class="text-muted small mb-2" *ngIf="paginacion">
+          Página {{ paginacion.page }} de {{ paginacion.total_paginas }}
+          ({{ paginacion.productos_en_pagina }} en esta página)
+          · Doble clic en un producto para ver el kardex detallado.
+        </p>
+      </div>
+
+      <div *ngIf="cabeceraDS.data.length" class="mb-4">
+        <h6 class="mb-2">Resumen por producto (cabecera)</h6>
+        <div class="table-responsive kdx-tabla-wrap">
+          <table mat-table [dataSource]="cabeceraDS" class="mat-elevation-z1 w-100 kdx-mat-table">
+            <ng-container *ngFor="let k of keysCabecera" [matColumnDef]="k">
+              <th mat-header-cell *matHeaderCellDef class="kdx-th-compact">{{ etiquetaColumnaCabecera(k) }}</th>
+              <td mat-cell *matCellDef="let row" class="kdx-td-compact">{{ row[k] }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="displayedColumnsCabecera; sticky: true"></tr>
+            <tr
+              mat-row
+              *matRowDef="let row; columns: displayedColumnsCabecera"
+              class="kdx-fila-producto"
+              [class.kdx-fila-producto-activa]="esFilaCabeceraSeleccionada(row)"
+              title="Doble clic para ver el detalle"
+              (dblclick)="seleccionarFilaCabecera(row)"
+            ></tr>
+          </table>
+        </div>
+        <mat-paginator
+          *ngIf="paginacion"
+          [length]="paginatorLength"
+          [pageIndex]="paginatorPageIndex"
+          [pageSize]="perPage"
+          [pageSizeOptions]="perPageOpciones"
+          [disabled]="loading"
+          (page)="onPaginatorChange($event)"
+          showFirstLastButtons
+        ></mat-paginator>
+      </div>
+
+      <div *ngIf="productoSeleccionado && detalleDS.data.length" class="mb-4 kdx-detalle">
+        <h6 class="mb-2">Detalle de movimientos</h6>
+        <p class="text-muted small mb-2">
+          {{ productoSeleccionado.codigoBarra }} — {{ productoSeleccionado.nombre }}
+          <span *ngIf="productoSeleccionado.categoria"> · {{ productoSeleccionado.categoria }}</span>
+          <span *ngIf="productoSeleccionado.id"> (ID {{ productoSeleccionado.id }})</span>
+          <span *ngIf="respuesta?.total_detalle_registros != null">
+            · {{ respuesta?.total_detalle_registros }} movimiento(s)
+          </span>
+        </p>
+        <div class="table-responsive kdx-tabla-wrap">
+          <table mat-table [dataSource]="detalleDS" class="mat-elevation-z1 w-100 kdx-mat-table">
+            <ng-container *ngFor="let k of keysDetalle" [matColumnDef]="k">
+              <th mat-header-cell *matHeaderCellDef class="kdx-th-compact">{{ etiquetaColumnaDetalle(k) }}</th>
+              <td
+                mat-cell
+                *matCellDef="let row"
+                class="kdx-td-compact"
+                [ngClass]="claseFilaDetalle(row.movimiento)"
+              >
+                {{ row[k] }}
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="displayedColumnsDetalle; sticky: true"></tr>
+            <tr
+              mat-row
+              *matRowDef="let row; columns: displayedColumnsDetalle"
+              [ngClass]="claseFilaDetalle(row.movimiento)"
+            ></tr>
+          </table>
+        </div>
+      </div>
+
+      <div *ngIf="respuesta && idProductoDetalle && !detalleDS.data.length" class="alert alert-info">
+        El producto seleccionado no tiene movimientos en el periodo indicado.
+      </div>
+
+      <div *ngIf="respuesta && !cabeceraDS.data.length" class="alert alert-info">
+        No hay productos para el punto de venta, periodo y filtros seleccionados.
+      </div>
+    </div>
+  </div>
+</div>

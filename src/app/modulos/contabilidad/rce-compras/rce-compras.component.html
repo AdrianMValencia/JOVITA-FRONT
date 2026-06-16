@@ -1,0 +1,74 @@
+<div class="container-fluid py-3">
+  <div class="ibox">
+    <div class="ibox-title">
+      <h5>Registro de compras electrónicas (RCE) — SIRE SUNAT</h5>
+    </div>
+    <div class="ibox-content">
+      <form [formGroup]="fg" class="row align-items-end g-2 mb-3">
+        <div class="col-md-2">
+          <label class="form-label">Fecha inicio</label>
+          <input type="date" class="form-control" formControlName="fechaInicio" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Fecha fin</label>
+          <input type="date" class="form-control" formControlName="fechaFin" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Punto de venta</label>
+          <select class="form-control" formControlName="idPuntoVenta">
+            <option value="">Todas las tiendas</option>
+            <option *ngFor="let pv of puntosVenta" [value]="pv.id">{{ pv.nombre }}</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-center">
+          <mat-checkbox formControlName="soloActivas">Solo activas</mat-checkbox>
+        </div>
+        <div class="col-md-3 text-md-end cont-filtros-acciones">
+          <button type="button" class="btn btn-outline-secondary" (click)="refrescarFiltros()" [disabled]="loading">
+            Refrescar filtros
+          </button>
+          <button type="button" class="btn btn-primary" (click)="consultar()" [disabled]="loading">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+            Consultar
+          </button>
+          <button type="button" class="btn btn-outline-success" (click)="descargarExcel()" [disabled]="descargandoExcel">
+            <span *ngIf="descargandoExcel" class="spinner-border spinner-border-sm me-1"></span>
+            Descargar Excel
+          </button>
+        </div>
+      </form>
+
+      <div *ngIf="resumen" class="mb-3">
+        <p class="mb-1"><strong>{{ resumen.reporte }}</strong></p>
+        <p class="text-muted small mb-0" *ngIf="resumen.periodo">
+          Periodo: {{ resumen.periodo.fechaInicio }} — {{ resumen.periodo.fechaFin }}
+          <span *ngIf="resumen.periodo.idPuntoVenta != null"> · Punto venta: {{ resumen.periodo.idPuntoVenta }}</span>
+          · Total: {{ resumen.total_registros ?? dataSource.data.length }}
+        </p>
+      </div>
+
+      <div class="table-responsive rce-tabla-wrap mb-4" *ngIf="dataSource.data.length">
+        <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 w-100 rce-mat-table">
+          <ng-container matColumnDef="compra_id">
+            <th mat-header-cell *matHeaderCellDef>{{ etiquetaColumna('compra_id') }}</th>
+            <td mat-cell *matCellDef="let row">{{ row.compra_id }}</td>
+          </ng-container>
+          <ng-container matColumnDef="id_punto_venta">
+            <th mat-header-cell *matHeaderCellDef>{{ etiquetaColumna('id_punto_venta') }}</th>
+            <td mat-cell *matCellDef="let row">{{ row.id_punto_venta }}</td>
+          </ng-container>
+          <ng-container *ngFor="let k of keysColumnas" [matColumnDef]="k">
+            <th mat-header-cell *matHeaderCellDef class="rce-th-compact">{{ etiquetaColumna(k) }}</th>
+            <td mat-cell *matCellDef="let row" class="rce-td-compact">{{ row[k] }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+      </div>
+
+      <div *ngIf="resumen && !dataSource.data.length" class="alert alert-info">
+        No hay filas para el periodo seleccionado.
+      </div>
+    </div>
+  </div>
+</div>

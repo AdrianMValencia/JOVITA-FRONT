@@ -118,9 +118,25 @@
                           </td>
                       </ng-container>
                       <ng-container matColumnDef="numeracion">
-                          <th mat-header-cell *matHeaderCellDef> Número </th>
-                          <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Número :'>
-                              {{element.series}}-{{element.numeracion}}
+                          <th mat-header-cell *matHeaderCellDef> Ticket (POS) </th>
+                          <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='Ticket :'>
+                              {{ ticketPosListado(element) }}
+                          </td>
+                      </ng-container>
+
+                      <ng-container matColumnDef="cpeSunat">
+                          <th mat-header-cell *matHeaderCellDef> CPE SUNAT </th>
+                          <td mat-cell *matCellDef="let element" class='has_label_on_mobile text-monospace small' data-label='CPE SUNAT :'
+                            [title]="comprobanteSunatColumna(element) !== '—' ? comprobanteSunatColumna(element) : ''">
+                              {{ comprobanteSunatColumna(element) }}
+                          </td>
+                      </ng-container>
+
+                      <ng-container matColumnDef="estadoEfact">
+                          <th mat-header-cell *matHeaderCellDef> eFact </th>
+                          <td mat-cell *matCellDef="let element" class='has_label_on_mobile' data-label='eFact :'
+                            [title]="tooltipEfactListado(element)">
+                              {{ resumenEstadoEfactColumna(element) }}
                           </td>
                       </ng-container>
 

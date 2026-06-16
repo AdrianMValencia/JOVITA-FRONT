@@ -79,7 +79,8 @@ export class ModalProductosComponent implements OnInit {
       precioCompra: ['', [Validators.pattern(/^-?\d*[.,]?\d{0,4}$/)]],
       slider: [false],
       banner: [''],
-     descuento: ['', [Validators.pattern(/^\d+$/)]]
+     descuento: ['', [Validators.pattern(/^\d+$/)]],
+      igv: [false]
     });
   }
 
@@ -128,7 +129,8 @@ export class ModalProductosComponent implements OnInit {
         precioCompra: array.precioCompra,
         slider: array.slider,
         banner: array.banner ? array.banner + '' : '0',
-        descuento: array.descuento
+        descuento: array.descuento,
+        igv: array.igv === undefined || array.igv === null ? false : (array.igv === true || array.igv === 1 || array.igv === '1')
       });
 
       this.selectEvent(array.categorias);
@@ -192,6 +194,7 @@ export class ModalProductosComponent implements OnInit {
           this.productos.slider = vfbModal.slider !== "" ? vfbModal.slider: false,
           this.productos.banner = vfbModal.banner !== "" ? vfbModal.banner: 0,
           this.productos.descuento = vfbModal.descuento !== "" ? vfbModal.descuento: '0.00',
+          this.productos.igv = vfbModal.igv !== "" ? vfbModal.igv: false,
           this.productos.opcion = this.fromParent.opcion;
 
           const lista: Productos[] = this.fromParent.lista;

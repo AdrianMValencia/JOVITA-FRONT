@@ -20,13 +20,14 @@ import { ReportevalorizaciondiariaComponent } from './reportevalorizaciondiaria/
 import { ReportevalorizacionproductosComponent } from './reportevalorizacionproductos/reportevalorizacionproductos.component';
 import { ReporteventastotalesComponent } from './reporteventastotales/reporteventastotales.component';
 import { ReporteventastotalesanioComponent } from './reporteventastotalesanio/reporteventastotalesanio.component';
+import { ReporteVentasCategoriasDetalladoComponent } from './ventas-categorias-detallado/ventas-categorias-detallado.component';
 
 export const REPORTES_RUTAS_COMPONENTES = [
   ReporteInventarioComponent, ReporetemovimientoComponent, ReporteventastotalesComponent, ReporteventastotalesanioComponent,
   ReportecomparacionventasvendedoresComponent, ReporteproductospuntoventaComponent, ReportegananciatiendasComponent,
   ReportevalorizacionproductosComponent, ReporteflujoinversionComponent, ReportevalorizaciondiariaComponent, ReporteMensualporVendedorComponent,
   ReporteComprasResumidasComponent, ReporteVentaComprasDiariasComponent, ReporteSobrantesVsFaltantesComponent, ReporteProveedoresXProductosComponent,
-  ProductosStockMinimoComponent
+  ProductosStockMinimoComponent, ReporteVentasCategoriasDetalladoComponent
 ];
 
 const routes: Routes = [
@@ -109,6 +110,11 @@ const routes: Routes = [
         path: "proveedores-productos",
         component: ReporteProveedoresXProductosComponent,
         data: {titulo: 'Proveedores por Producto'}
+      },
+      {
+        path: "ventas-categorias-detallado",
+        component: ReporteVentasCategoriasDetalladoComponent,
+        data: {titulo: 'Ventas por Categorias Detallado'}
       },
       {
         path: "productos-stock-minimo",

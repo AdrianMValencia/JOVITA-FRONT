@@ -1,5 +1,4 @@
 import { NgModule } from "@angular/core";
-import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { MatButtonModule } from "@angular/material/button";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatSidenavModule } from "@angular/material/sidenav";
@@ -41,7 +40,6 @@ import { MatDatepickerModule } from "@angular/material/datepicker";
 
 @NgModule({
   imports: [
-    BrowserAnimationsModule,
     MatButtonModule,
     MatToolbarModule,
     MatSidenavModule,
@@ -79,7 +77,6 @@ import { MatDatepickerModule } from "@angular/material/datepicker";
     MatTreeModule,
   ],
   exports: [
-    BrowserAnimationsModule,
     MatButtonModule,
     MatToolbarModule,
     MatSidenavModule,

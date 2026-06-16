@@ -582,11 +582,13 @@ export class ModalIngresosComponent implements OnInit {
 
   private buscandoCodigoBarra = false;
 
-  onEnter(event: any): void {
-    event.preventDefault();
-
-    const codigo = this.formGroup.get('codigoBarra')?.value;
-    if (codigo !== '' && !this.buscandoCodigoBarra) {
+  /**
+   * Procesa el código de barra: busca el producto y abre el modal correspondiente
+   * Se ejecuta al presionar Enter, pegar o cambiar el valor del input
+   */
+  private procesarCodigoBarra(): void {
+    const codigo = this.formGroup.get('codigoBarra')?.value?.trim();
+    if (codigo !== '' && codigo !== undefined && !this.buscandoCodigoBarra) {
       this.buscandoCodigoBarra = true;
       this.productosService.obtenerProductosCodigoBarra(codigo, this.puntoVentas.id).subscribe(response => {
         let productos: Productos = response.productos;
@@ -613,6 +615,29 @@ export class ModalIngresosComponent implements OnInit {
         this.buscandoCodigoBarra = false;
       });
     }
+  }
+
+  onEnter(event: any): void {
+    event.preventDefault();
+    this.procesarCodigoBarra();
+  }
+
+  /**
+   * Se dispara después del evento paste (para códigos pegados)
+   */
+  onPasteCodigoBarra(): void {
+    // Pequeño delay para permitir que el valor se actualice en el input
+    setTimeout(() => {
+      this.procesarCodigoBarra();
+    }, 50);
+  }
+
+  /**
+   * Se dispara cuando pierdes el foco del input (blur)
+   * Útil para pistolas que no envían Enter automáticamente
+   */
+  onBlurCodigoBarra(): void {
+    this.procesarCodigoBarra();
   }
 
   onKeydown(event: any, indice: number) {

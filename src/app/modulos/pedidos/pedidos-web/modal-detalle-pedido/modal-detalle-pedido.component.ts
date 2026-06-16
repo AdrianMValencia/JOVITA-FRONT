@@ -87,7 +87,11 @@ export class ModalDetallePedidoComponent implements OnInit {
   }
 
   getEstadoBadgeClass(estado: string): string {
-    switch (estado?.toLowerCase()) {
+    // `estado` is declared as a non‑nullable string, so the optional
+    // chain operator is redundant and triggers NG8107.  convert to
+    // a normal property access and guard against empty string if
+    // necessary.
+    switch (estado.toLowerCase()) {
       case 'atendido':
         return 'badge-success';
       case 'pendiente':

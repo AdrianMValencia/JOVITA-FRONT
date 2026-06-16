@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { ReactiveFormsModule,FormsModule } from '@angular/forms';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { NgSelectModule } from '@ng-select/ng-select';
 import { NgxSpinnerModule } from 'ngx-spinner';
@@ -28,7 +27,6 @@ import { PipesModule } from "../../shared/pipe/pipes.module";
     ReportesRutasModule,
     ReactiveFormsModule,
     FormsModule,
-    BrowserAnimationsModule,
     libreria,
     InterceptorModule,
     PipesModule

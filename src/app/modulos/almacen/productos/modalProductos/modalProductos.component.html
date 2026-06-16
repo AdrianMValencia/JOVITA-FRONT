@@ -177,6 +177,13 @@
             </div>
           </div>
         </div>
+        <div class="col-lg-3 form-group">
+          <label>IGV</label><br>
+          <mat-slide-toggle formControlName="igv">Afecto a IGV</mat-slide-toggle>
+          <small class="d-block text-muted mt-1">
+            {{ formGroup.get('igv').value ? 'Si aplica IGV' : 'No aplica IGV' }}
+          </small>
+        </div>
         <div class="col-lg-12">
           <div class="form-group">
             <label>Observaciones</label>

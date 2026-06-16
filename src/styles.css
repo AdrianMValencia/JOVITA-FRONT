@@ -21,6 +21,32 @@ label {
   width: 100% !important;
 }
 
+/* attempt to keep overlays outside transformed containers
+   use absolute positioning so offsets are computed relative to document */
+.mat-select-panel {
+  position: absolute !important;
+  /* allow normal calculation by CDK */
+}
+
+.cdk-overlay-container {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: auto;
+  height: auto;
+  z-index: 10000;
+}
+
+/* make sure main wrapper does not clip overlays */
+.wrapper-content {
+  overflow: visible !important;
+}
+
+/* override any transform on overlay wrapper that could offset panels */
+.cdk-global-overlay-wrapper {
+  transform: none !important;
+}
+
 .oculto{
   display: none !important;
 }
@@ -50,4 +76,41 @@ tr:focus{
 .nav-label{
   font-size: 16px;
   font-weight: bolder;
+}
+
+/* Toast detalle sincronización eFact: tono informativo, sin “alarma” naranja */
+#toast-container > .toast-info.toast-efact-sync {
+  background-image: none !important;
+  background-color: #e8f4fc !important;
+  color: #334155 !important;
+  border: 1px solid #bae6fd !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07) !important;
+  opacity: 1 !important;
+}
+#toast-container > .toast-info.toast-efact-sync .toast-efact-sync-title,
+#toast-container > .toast-info.toast-efact-sync .toast-title.toast-efact-sync-title {
+  color: #0c4a6e !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+#toast-container > .toast-info.toast-efact-sync .toast-efact-sync-message,
+#toast-container > .toast-info.toast-efact-sync .toast-message.toast-efact-sync-message {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  max-height: 280px;
+  overflow-y: auto;
+  color: #475569 !important;
+}
+
+/* Toast cobro con eFact: varias líneas legibles (CPE, ticket POS, total) */
+#toast-container > .toast-success.toast-cobro-detalle .toast-cobro-detalle-msg,
+#toast-container > .toast-success.toast-cobro-detalle .toast-message.toast-cobro-detalle-msg {
+  white-space: pre-line;
+  word-break: break-word;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  max-height: 260px;
+  overflow-y: auto;
 }

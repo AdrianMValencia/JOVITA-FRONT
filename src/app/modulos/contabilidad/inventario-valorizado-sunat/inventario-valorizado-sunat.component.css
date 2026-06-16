@@ -1,0 +1,102 @@
+.inv-filtros .form-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+
+.inv-filtros-row {
+  margin-bottom: 0.5rem;
+}
+
+.inv-filtros-row:last-of-type {
+  margin-bottom: 0.25rem;
+}
+
+.inv-filtros-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: flex-end;
+  min-height: 38px;
+}
+
+.inv-filtros-ayuda {
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e7eaec;
+}
+
+.inv-filtros-producto {
+  padding: 0.35rem 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.inv-tabla-wrap {
+  max-height: 65vh;
+  overflow: auto;
+}
+
+.inv-mat-table {
+  min-width: 1400px;
+  font-size: 11px;
+}
+
+.inv-th-compact,
+.inv-td-compact {
+  white-space: nowrap;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+.fila-saldo-inicial {
+  font-weight: 600;
+  background-color: #f8f9fa;
+}
+
+.fila-ajuste {
+  background-color: #fff8e1;
+}
+
+.inv-resumen .badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.inv-lista-productos-wrap {
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.inv-lista-productos-table {
+  font-size: 11px;
+  min-width: 1100px;
+}
+
+.inv-th-grupo {
+  background-color: #f0f4f8;
+}
+
+.inv-th-grupo-final {
+  background-color: #e8f5e9;
+}
+
+.inv-fila-producto {
+  cursor: pointer;
+}
+
+.inv-fila-producto:hover {
+  background-color: #f5f5f5;
+}
+
+.inv-fila-producto-activa {
+  background-color: #e8f4f8 !important;
+}
+
+.inv-detalle-producto {
+  padding-top: 0.75rem;
+  border-top: 1px solid #e7eaec;
+}

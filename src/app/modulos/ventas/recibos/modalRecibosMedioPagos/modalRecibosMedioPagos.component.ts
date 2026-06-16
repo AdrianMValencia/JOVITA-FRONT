@@ -8,6 +8,7 @@ import { Medio } from '../model/medio';
 import { MediopagoService } from 'src/app/shared/services/mediopago/mediopago.service';
 import { PuntosVenta } from 'src/app/modulos/mantenimientos/puntosventa/model/puntosVenta';
 import { ModalRecibosPDFComponent } from '../modalRecibosPDF/modalRecibosPDF.component';
+import { mensajeToastExitoCobroRecibo } from '../utils/recibo-listado-ui.util';
 
 // Modals
 const MODALS: { [name: string]: Type<any> } = {
@@ -112,6 +113,7 @@ export class ModalRecibosMedioPagosComponent implements OnInit {
   }
 
   crearDocumento(): any{
+    this.recibos.emitirEfact = !!this.recibos.emitirEfact;
     this.recibos.pagado = parseFloat(this.medioPago.importe);
     this.recibos.vuelto = parseFloat(this.vuelto);
     this.recibos.medioPagos = this.medioPago;
@@ -149,7 +151,12 @@ export class ModalRecibosMedioPagosComponent implements OnInit {
     this.progressBar = true;
     this.service.emitirRecibo(this.recibos).subscribe(response => {
       if (response.status === 200) {
-        this.funcionesService.showSuccess(response.message);
+        const msg = mensajeToastExitoCobroRecibo(response as Record<string, unknown>, !!this.recibos.emitirEfact);
+        if (this.recibos.emitirEfact) {
+          this.funcionesService.showSuccessCobroDetalle(msg);
+        } else {
+          this.funcionesService.showSuccess(msg);
+        }
 
         const oReturn: any = new Object();
 
@@ -174,6 +181,7 @@ export class ModalRecibosMedioPagosComponent implements OnInit {
   }
 
   crearDocumentoPDF(): any{
+    this.recibos.emitirEfact = !!this.recibos.emitirEfact;
     this.recibos.pagado = parseFloat(this.medioPago.importe);
     this.recibos.vuelto = parseFloat(this.vuelto);
     this.recibos.medioPagos = this.medioPago;
@@ -211,7 +219,12 @@ export class ModalRecibosMedioPagosComponent implements OnInit {
     this.progressBar = true;
     this.service.emitirRecibo(this.recibos).subscribe(response => {
       if (response.status === 200) {
-        this.funcionesService.showSuccess(response.message);
+        const msg = mensajeToastExitoCobroRecibo(response as Record<string, unknown>, !!this.recibos.emitirEfact);
+        if (this.recibos.emitirEfact) {
+          this.funcionesService.showSuccessCobroDetalle(msg);
+        } else {
+          this.funcionesService.showSuccess(msg);
+        }
 
         const oReturn: any = new Object();
 
@@ -222,7 +235,23 @@ export class ModalRecibosMedioPagosComponent implements OnInit {
 
         const modalRef = this._modalService.open(MODALS['downloadPDF'], this.NgbModalOptions);
         const obj: any = new Object();
-        obj['recibos'] = response.recibos;
+        const guardado = response.recibos || {};
+        const merged: any = { ...guardado };
+        const raiz: any = response;
+        if (raiz?.efact_ticket != null && merged.efact_ticket == null) {
+          merged.efact_ticket = raiz.efact_ticket;
+        }
+        if (raiz?.ticket != null && merged['ticket'] == null) {
+          merged['ticket'] = raiz.ticket;
+        }
+        if (raiz?.ticket_ose != null && merged['ticket_ose'] == null) {
+          merged['ticket_ose'] = raiz.ticket_ose;
+        }
+        if (raiz?.comprobante_emitido != null && merged.comprobante_emitido == null) {
+          merged.comprobante_emitido = raiz.comprobante_emitido;
+        }
+        obj['recibos'] = merged;
+        obj['preferirComprobanteEfact'] = true;
         modalRef.componentInstance.fromParent = obj;
 
         this.funcionesService.hideLoading();

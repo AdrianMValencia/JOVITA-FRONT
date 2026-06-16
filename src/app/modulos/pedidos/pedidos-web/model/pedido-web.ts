@@ -18,7 +18,7 @@ export class PedidoWeb {
     public numero_documento?: string,
     public razon_social?: string,
     public direccion_fiscal?: string,
-    public propina?: string,
+    public propina?: string | any,
     public subtotal?: string,
     public envio?: string,
     public total?: string,

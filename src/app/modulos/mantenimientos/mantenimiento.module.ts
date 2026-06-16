@@ -4,7 +4,6 @@ import { ReactiveFormsModule,FormsModule } from "@angular/forms";
 
 import { AppMaterialModule } from "../../shared/material/app-material.module";
 import { NgxSpinnerModule } from 'ngx-spinner';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { InterceptorModule } from '../../shared/interceptors/interceptor.module';
 import { NgSelectModule } from '@ng-select/ng-select';
 import { AutocompleteLibModule } from 'angular-ng-autocomplete';
@@ -27,7 +26,6 @@ import {
     MantenimientoRutasModule,
     ReactiveFormsModule,
     FormsModule,
-    BrowserAnimationsModule,
     libreria,
     InterceptorModule
   ],
