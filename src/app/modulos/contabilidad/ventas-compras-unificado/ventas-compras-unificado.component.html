@@ -1,0 +1,150 @@
+<div class="container-fluid py-3">
+  <div class="ibox">
+    <div class="ibox-title">
+      <h5>Reporte de Ventas y Compras — SIRE SUNAT</h5>
+    </div>
+    <div class="ibox-content">
+      <p class="text-muted small mb-3" *ngIf="esModoGeneral">
+        Desde <strong>JOVITA GENERAL</strong> se consolidan por defecto las tiendas 1, 2 y 3.
+        Puede filtrar una tienda específica si lo necesita.
+      </p>
+      <p class="text-muted small mb-3" *ngIf="!esModoGeneral">
+        Mostrando información de <strong>{{ etiquetaAlcance }}</strong>.
+      </p>
+
+      <form [formGroup]="fg" class="row align-items-end g-2 mb-3">
+        <div class="col-md-2">
+          <label class="form-label">Fecha inicio</label>
+          <input type="date" class="form-control" formControlName="fechaInicio" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Fecha fin</label>
+          <input type="date" class="form-control" formControlName="fechaFin" />
+        </div>
+        <div class="col-md-3" *ngIf="esModoGeneral">
+          <label class="form-label">Alcance</label>
+          <select class="form-control" formControlName="idPuntoVenta" (change)="actualizarEtiquetaAlcance()">
+            <option value="">{{ etiquetaConsolidacionSire() }}</option>
+            <option *ngFor="let pv of tiendasConsolidacion" [value]="pv.id">{{ pv.nombre }}</option>
+          </select>
+        </div>
+        <div class="col-md-3" *ngIf="!esModoGeneral">
+          <label class="form-label">Punto de venta</label>
+          <input type="text" class="form-control" [value]="etiquetaAlcance" readonly />
+        </div>
+        <div class="col-md-2 d-flex align-items-center">
+          <mat-checkbox formControlName="soloActivas">Solo activas</mat-checkbox>
+        </div>
+        <div class="col-md-3 text-md-end cont-filtros-acciones">
+          <button type="button" class="btn btn-outline-secondary" (click)="refrescarFiltros()" [disabled]="loading">
+            Refrescar filtros
+          </button>
+          <button type="button" class="btn btn-primary" (click)="consultar()" [disabled]="loading">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+            Consultar
+          </button>
+        </div>
+      </form>
+
+      <div class="alert alert-light border mb-3 py-2" *ngIf="etiquetaAlcance">
+        <strong>Alcance actual:</strong> {{ etiquetaAlcance }}
+      </div>
+
+      <mat-tab-group [(selectedIndex)]="tabActiva" *ngIf="resumenCompras || resumenVentas">
+        <mat-tab label="Compras (RCE)">
+          <div class="pt-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+              <div *ngIf="resumenCompras">
+                <p class="mb-1"><strong>{{ resumenCompras.reporte }}</strong></p>
+                <p class="text-muted small mb-0" *ngIf="resumenCompras.periodo">
+                  Periodo: {{ resumenCompras.periodo.fechaInicio }} — {{ resumenCompras.periodo.fechaFin }}
+                  · Total: {{ resumenCompras.total_registros ?? dataSourceCompras.data.length }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="btn btn-outline-success btn-sm"
+                (click)="descargarExcelCompras()"
+                [disabled]="descargandoExcelCompras">
+                <span *ngIf="descargandoExcelCompras" class="spinner-border spinner-border-sm me-1"></span>
+                Excel Compras
+              </button>
+            </div>
+
+            <div class="table-responsive rce-tabla-wrap mb-4" *ngIf="dataSourceCompras.data.length">
+              <table mat-table [dataSource]="dataSourceCompras" class="mat-elevation-z1 w-100 rce-mat-table">
+                <ng-container matColumnDef="registro_id">
+                  <th mat-header-cell *matHeaderCellDef>{{ etiquetaColumnaCompras('registro_id') }}</th>
+                  <td mat-cell *matCellDef="let row">{{ row.registro_id }}</td>
+                </ng-container>
+                <ng-container matColumnDef="id_punto_venta">
+                  <th mat-header-cell *matHeaderCellDef>{{ etiquetaColumnaCompras('id_punto_venta') }}</th>
+                  <td mat-cell *matCellDef="let row">{{ row.id_punto_venta }}</td>
+                </ng-container>
+                <ng-container *ngFor="let k of tablaCompras.keysColumnas" [matColumnDef]="k">
+                  <th mat-header-cell *matHeaderCellDef class="rce-th-compact">{{ etiquetaColumnaCompras(k) }}</th>
+                  <td mat-cell *matCellDef="let row" class="rce-td-compact">{{ row[k] }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="tablaCompras.displayedColumns; sticky: true"></tr>
+                <tr mat-row *matRowDef="let row; columns: tablaCompras.displayedColumns"></tr>
+              </table>
+            </div>
+
+            <div *ngIf="resumenCompras && !dataSourceCompras.data.length" class="alert alert-info">
+              No hay compras para el periodo seleccionado.
+            </div>
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Ventas (RVIE)">
+          <div class="pt-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+              <div *ngIf="resumenVentas">
+                <p class="mb-1"><strong>{{ resumenVentas.reporte }}</strong></p>
+                <p class="text-muted small mb-0" *ngIf="resumenVentas.periodo">
+                  Periodo: {{ resumenVentas.periodo.fechaInicio }} — {{ resumenVentas.periodo.fechaFin }}
+                  · Total: {{ resumenVentas.total_registros ?? dataSourceVentas.data.length }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="btn btn-outline-success btn-sm"
+                (click)="descargarExcelVentas()"
+                [disabled]="descargandoExcelVentas">
+                <span *ngIf="descargandoExcelVentas" class="spinner-border spinner-border-sm me-1"></span>
+                Excel Ventas
+              </button>
+            </div>
+
+            <div class="table-responsive rce-tabla-wrap mb-4" *ngIf="dataSourceVentas.data.length">
+              <table mat-table [dataSource]="dataSourceVentas" class="mat-elevation-z1 w-100 rce-mat-table">
+                <ng-container matColumnDef="registro_id">
+                  <th mat-header-cell *matHeaderCellDef>{{ etiquetaColumnaVentas('registro_id') }}</th>
+                  <td mat-cell *matCellDef="let row">{{ row.registro_id }}</td>
+                </ng-container>
+                <ng-container matColumnDef="id_punto_venta">
+                  <th mat-header-cell *matHeaderCellDef>{{ etiquetaColumnaVentas('id_punto_venta') }}</th>
+                  <td mat-cell *matCellDef="let row">{{ row.id_punto_venta }}</td>
+                </ng-container>
+                <ng-container *ngFor="let k of tablaVentas.keysColumnas" [matColumnDef]="k">
+                  <th mat-header-cell *matHeaderCellDef class="rce-th-compact">{{ etiquetaColumnaVentas(k) }}</th>
+                  <td mat-cell *matCellDef="let row" class="rce-td-compact">{{ row[k] }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="tablaVentas.displayedColumns; sticky: true"></tr>
+                <tr mat-row *matRowDef="let row; columns: tablaVentas.displayedColumns"></tr>
+              </table>
+            </div>
+
+            <div *ngIf="resumenVentas && !dataSourceVentas.data.length" class="alert alert-info">
+              No hay ventas para el periodo seleccionado.
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+
+      <div *ngIf="!resumenCompras && !resumenVentas && !loading" class="alert alert-secondary">
+        Indique el periodo y pulse <strong>Consultar</strong> para ver compras y ventas en un solo reporte.
+      </div>
+    </div>
+  </div>
+</div>

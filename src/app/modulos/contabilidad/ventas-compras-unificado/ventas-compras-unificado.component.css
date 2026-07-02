@@ -1,0 +1,24 @@
+.cont-filtros-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.rce-tabla-wrap {
+  max-height: 55vh;
+  overflow: auto;
+}
+
+.rce-mat-table {
+  min-width: 1200px;
+  font-size: 11px;
+}
+
+.rce-th-compact,
+.rce-td-compact {
+  white-space: nowrap;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}

@@ -66,8 +66,8 @@ export class ModalRecibosPDFComponent implements OnInit {
   }
 
   /**
-   * PDF eFact para recibo: 1) ticket ~72 mm generado desde XML OSE (mismos datos + QR SUNAT);
-   * 2) PDF A4 del API (query con ticket, /pdf/{ticket} o solo id).
+   * PDF eFact para recibo: ticket ~72 mm desde XML OSE (diseño original);
+   * si falla, PDF del API eFact.
    */
   private obtenerBlobPdfEfactRecibo(onBlob: (b: Blob) => void, onFalloPdfApi: () => void): void {
     const idRec = Number(this.recibos?.id);
@@ -76,6 +76,7 @@ export class ModalRecibosPDFComponent implements OnInit {
       return;
     }
     const ticket = this.getEfactTicketString();
+
     const pdfApi = () => {
       if (ticket) {
         this.comprobantesService
@@ -112,7 +113,7 @@ export class ModalRecibosPDFComponent implements OnInit {
                 pdfApi();
                 return;
               }
-              void generarPdfTicketDesdeUblXml(xmlText)
+              void generarPdfTicketDesdeUblXml(xmlText, { vendedor: this.recibos?.vendedor })
                 .then((ticketPdf) => {
                   if (ticketPdf && ticketPdf.size > 400) {
                     onBlob(ticketPdf);

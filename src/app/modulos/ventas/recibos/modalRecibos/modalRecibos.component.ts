@@ -28,6 +28,7 @@ import {
   distribuirTotalLineaEnSubtotalIgv,
   recalcularTotalesCabeceraDesdeDetalles
 } from '../utils/recibos-afectacion-igv.util';
+import { usaFacturacionElectronicaPos } from '../utils/ventas-punto-venta.util';
 declare var $: any;
 declare var document: any;
 
@@ -47,7 +48,9 @@ const MODALS: { [name: string]: Type<any> } = {
 })
 export class ModalRecibosComponent implements OnInit {
 
-  displayedColumns: string[] = ['codigo', 'descripcion', 'afectacion', 'subtotal', 'cantidad', 'total', 'existencia', 'acciones'];
+  /** Tiendas 1–3: cabecera SUNAT/eFact; tienda 4 y demás: solo ticket POS clásico. */
+  usaFacturacionElectronica = false;
+  displayedColumns: string[] = [];
   dataSource: MatTableDataSource<RecibosDetalles> = new MatTableDataSource<RecibosDetalles>();
   items: RecibosDetalles = new RecibosDetalles(0, '', '', '', 1, '', 0.18, '', 1);
   opcion: number = 1;
@@ -105,26 +108,31 @@ export class ModalRecibosComponent implements OnInit {
     private fb: FormBuilder,
     private _modalService: NgbModal
   ) {
+    this.usaFacturacionElectronica = usaFacturacionElectronicaPos(this.puntoVentas?.nombre);
+    this.displayedColumns = this.usaFacturacionElectronica
+      ? ['codigo', 'descripcion', 'afectacion', 'subtotal', 'cantidad', 'total', 'existencia', 'acciones']
+      : ['codigo', 'descripcion', 'subtotal', 'cantidad', 'total', 'existencia', 'acciones'];
     this.new_Modal();
   }
 
   new_Modal() {
     this.emisionManualMenorCinco = false;
+    const fe = this.usaFacturacionElectronica;
     this.formGroup = this.fb.group({
       id: 0,
       idPuntoVenta: [this.puntoVentas.id, [Validators.required]],
       puntoventa: [this.puntoVentas.nombre, [Validators.required]],
-      tipoComprobante: ['', [Validators.required]],
-      serieComprobante: ['', [Validators.required]],
-      numeroComprobante: ['', [Validators.required, Validators.pattern(/^\d+$/)]],
+      tipoComprobante: ['', fe ? [Validators.required] : []],
+      serieComprobante: ['', fe ? [Validators.required] : []],
+      numeroComprobante: ['', fe ? [Validators.required, Validators.pattern(/^\d+$/)] : []],
       /** Ticket interno POS (tbl_recibos / numeración tickets); distinto del CPE SUNAT. */
-      serieTicketPos: ['', [Validators.required]],
-      numeroTicketPos: ['', [Validators.required, Validators.pattern(/^\d+$/)]],
+      serieTicketPos: ['', fe ? [Validators.required] : []],
+      numeroTicketPos: ['', fe ? [Validators.required, Validators.pattern(/^\d+$/)] : []],
       idSeriesTicketsTicketPos: [null as number | null],
       fechaEmision: [ this.funcionesService.generarFechaLocal(new Date()), [Validators.required]],
-      tipoDocumento: ['', [Validators.required]],
-      numeroDocumento: ['00000000', [Validators.required]],
-      cliente: ['CLIENTES VARIOS', [Validators.required]],
+      tipoDocumento: ['', fe ? [Validators.required] : []],
+      numeroDocumento: ['00000000', fe ? [Validators.required] : []],
+      cliente: ['CLIENTES VARIOS', fe ? [Validators.required] : []],
       porcentajeDesc: ['', [Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
       montoDesc: ['', [Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
       totalGravada: ['', [Validators.required, Validators.pattern(/^\s*(\+|-)?((\d+(\.\d+)?)|(\.\d+))\s*$/)]],
@@ -137,7 +145,9 @@ export class ModalRecibosComponent implements OnInit {
       status: [true]
     });
 
-    this.aplicarReglaEmisionPorTotal();
+    if (fe) {
+      this.aplicarReglaEmisionPorTotal();
+    }
   }
 
   get getModal() { return this.formGroup.controls; }
@@ -146,8 +156,10 @@ export class ModalRecibosComponent implements OnInit {
     this.funcionesService.hideLoading();
     $("#codigoBarra").focus();
 
-    this.cargarCabeceraComprobante();
-    this.cargarTicketPosDesdeNumeracionTickets();
+    if (this.usaFacturacionElectronica) {
+      this.cargarCabeceraComprobante();
+      this.cargarTicketPosDesdeNumeracionTickets();
+    }
 
     document.addEventListener("keydown", (event: any) =>{
       // if (event.code === "F4")
@@ -234,9 +246,11 @@ export class ModalRecibosComponent implements OnInit {
     this.detalles = [];
     this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
     this.new_Modal();
-    this.aplicarDefaultsLocalesCabecera();
-    this.cargarCabeceraComprobante();
-    this.cargarTicketPosDesdeNumeracionTickets();
+    if (this.usaFacturacionElectronica) {
+      this.aplicarDefaultsLocalesCabecera();
+      this.cargarCabeceraComprobante();
+      this.cargarTicketPosDesdeNumeracionTickets();
+    }
     this.isModalOpen = false;
     this.productosLista = [];
     setTimeout(() => {
@@ -586,7 +600,7 @@ export class ModalRecibosComponent implements OnInit {
   }
 
   private aplicarReglaEmisionPorTotal(): void {
-    if (!this.formGroup) {
+    if (!this.usaFacturacionElectronica || !this.formGroup) {
       return;
     }
 
@@ -605,6 +619,9 @@ export class ModalRecibosComponent implements OnInit {
   }
 
   onEmitirEfactChange(event: any): void {
+    if (!this.usaFacturacionElectronica) {
+      return;
+    }
     const checked = !!event?.checked;
     const total = this.obtenerTotalVentaActual();
 
@@ -1017,7 +1034,7 @@ export class ModalRecibosComponent implements OnInit {
     if(this.formGroup.invalid){
       this.funcionesService.swalError('Información incorrecta o incompleta');
     }else{
-      this.resolverNumeracionRecibos(true, () => {
+      const continuarCobro = () => {
         this.funcionesService.showLoading();
         this.progressBar = true;
 
@@ -1044,29 +1061,41 @@ export class ModalRecibosComponent implements OnInit {
           this.recibos.id = vfbModal.id;
           this.recibos = vfbModal;
           this.recibos.idPuntoVenta = vfbModal.idPuntoVenta;
-          this.recibos.documento = vfbModal.tipoDocumento;
-          this.recibos.razonSocial = vfbModal.cliente;
-          this.recibos.series = vfbModal.serieTicketPos;
-          this.recibos.numeracion = vfbModal.numeroTicketPos;
-          this.recibos.serieComprobanteEfact = vfbModal.serieComprobante;
-          this.recibos.numeroComprobanteEfact = vfbModal.numeroComprobante;
-          const rPayload: any = this.recibos;
-          rPayload.serie_comprobante_efact = vfbModal.serieComprobante;
-          rPayload.numero_comprobante_efact = vfbModal.numeroComprobante;
           this.recibos.fechaEmision = vfbModal.fechaEmision;
           this.recibos.totalGravada = this.formGroup.get("totalGravada").value;
           this.recibos.totalIgv = this.formGroup.get("totalIgv").value;
           this.recibos.total = this.formGroup.get("total").value;
-          this.recibos.emitirEfact = !!this.formGroup.get("emitirEfact")?.value;
           this.recibos.pagado = this.formGroup.get("pagado").value;
           this.recibos.vuelto = this.formGroup.get("vuelto").value;
           this.recibos.detalles = this.detalles;
+
+          if (this.usaFacturacionElectronica) {
+            this.recibos.documento = vfbModal.tipoDocumento;
+            this.recibos.razonSocial = vfbModal.cliente;
+            this.recibos.series = vfbModal.serieTicketPos;
+            this.recibos.numeracion = vfbModal.numeroTicketPos;
+            this.recibos.serieComprobanteEfact = vfbModal.serieComprobante;
+            this.recibos.numeroComprobanteEfact = vfbModal.numeroComprobante;
+            const rPayload: any = this.recibos;
+            rPayload.serie_comprobante_efact = vfbModal.serieComprobante;
+            rPayload.numero_comprobante_efact = vfbModal.numeroComprobante;
+            this.recibos.emitirEfact = !!this.formGroup.get("emitirEfact")?.value;
+          } else {
+            this.recibos.emitirEfact = false;
+          }
+
           this.isModalOpen = true;
           this.openModal('medioPago');
           this.funcionesService.hideLoading();
           this.progressBar = false;
         }
-      });
+      };
+
+      if (this.usaFacturacionElectronica) {
+        this.resolverNumeracionRecibos(true, () => continuarCobro());
+      } else {
+        continuarCobro();
+      }
     }
   }
 

@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { PageEvent } from '@angular/material/paginator';
@@ -21,6 +22,7 @@ import {
 } from 'src/app/modulos/ventas/recibos/utils/recibo-listado-ui.util';
 import { resolverTicketEfactDesdeItem } from '../utils/efact-ticket-resolver.util';
 import { generarPdfTicketDesdeUblXml } from '../utils/efact-representacion-ticket-pdf.util';
+import { ModoListaEfact } from '../utils/efact-lista.util';
 
 interface Comprobante extends ComprobanteItem {}
 
@@ -30,32 +32,59 @@ interface Comprobante extends ComprobanteItem {}
   styleUrls: ['./lista-comprobantes.component.css']
 })
 export class ListaComprobantesComponent implements OnInit {
+  /** emitidos: CPE + ticket POS; pendientes: solo ticket POS, emisión masiva. */
+  modo: ModoListaEfact = 'emitidos';
+
+  readonly columnasEmitidos = ['origen','tipo','fecha','numero','ticketPos','ticket','cliente','total','estadoOse','estadoSunat','resultado','acciones'];
+  readonly columnasPendientes = ['select','origen','tipo','fecha','numero','ticketPos','ticket','cliente','total','estadoOse','estadoSunat','resultado','acciones'];
   /** Tamaño máximo de ítems por POST a sincronizar-estados (evita saturar la OSE). */
   readonly syncLoteMax = 25;
 
   filterForm: FormGroup;
   lista: Comprobante[] = [];
   MainDS: MatTableDataSource<Comprobante> = new MatTableDataSource<Comprobante>();
-  displayedColumns: string[] = ['select','origen','tipo','fecha','numero','ticketPos','ticket','cliente','total','estadoOse','estadoSunat','resultado','acciones'];
+  displayedColumns: string[] = [];
   total = 0;
   page = 1;
   pageSize = 15;
   loading = false;
   syncing = false;
-  nota = 'Cada selección se envía como comprobante electrónico independiente.';
+  nota = '';
   seleccionados: Record<string, boolean> = {};
+
+  get esModoEmitidos(): boolean {
+    return this.modo === 'emitidos';
+  }
+
+  get esModoPendientes(): boolean {
+    return this.modo === 'pendientes';
+  }
+
+  get tituloPantalla(): string {
+    return this.esModoEmitidos
+      ? 'Comprobantes emitidos (CPE SUNAT + ticket POS)'
+      : 'Tickets pendientes de emisión eFact';
+  }
 
   constructor(
     private fb: FormBuilder,
     private service: ComprobantesService,
-    private funcionesService: FuncionesService
+    private funcionesService: FuncionesService,
+    private route: ActivatedRoute
   ) {
+    const modoRuta = this.route.snapshot.data['modo'] as ModoListaEfact | undefined;
+    this.modo = modoRuta === 'pendientes' ? 'pendientes' : 'emitidos';
+    this.displayedColumns = this.esModoEmitidos ? [...this.columnasEmitidos] : [...this.columnasPendientes];
+    this.nota = this.esModoPendientes
+      ? 'Seleccione uno o más tickets; la emisión masiva genera un solo número de comprobante SUNAT para todos.'
+      : 'Solo comprobantes ya emitidos con número CPE SUNAT y ticket POS.';
+
     this.filterForm = this.fb.group({
       idPuntoVenta: [''],
       fechaDesde: [''],
       fechaHasta: [''],
       cliente: [''],
-      estado: ['pendiente'],
+      estado: [this.esModoEmitidos ? 'emitido' : 'pendiente'],
       origen: ['todos']
     });
   }
@@ -71,7 +100,8 @@ export class ListaComprobantesComponent implements OnInit {
       fechaDesde: f.fechaDesde || undefined,
       fechaHasta: f.fechaHasta || undefined,
       cliente: f.cliente || undefined,
-      estado: f.estado || 'pendiente',
+      modoListado: this.esModoEmitidos ? 'emitidos' : 'pendientes',
+      estado: f.estado || (this.esModoEmitidos ? 'emitido' : 'pendiente'),
       origen: f.origen || 'todos',
       page: this.page,
       pageSize: this.pageSize
@@ -80,12 +110,16 @@ export class ListaComprobantesComponent implements OnInit {
     this.loading = true;
     this.service.listEfactEmisiones(filters).subscribe(page => {
       const raw = Array.isArray(page?.items) ? page.items : [];
-      const items = raw.map((row: any) => this.normalizarItemEfact(row));
+      const normalizados = raw.map((row: any) => this.normalizarItemEfact(row));
+      const items = this.filtrarSegunReglaPantalla(normalizados as Comprobante[]);
       this.lista = items;
       this.MainDS = new MatTableDataSource<Comprobante>(items);
-      this.total = Number(page?.total || 0);
+      // Si el backend mezcló estados, reflejar el total real visible.
+      this.total = items.length;
       this.nota = page?.nota || this.nota;
-      this.pruneSeleccionNoValidos();
+      if (this.esModoPendientes) {
+        this.pruneSeleccionNoValidos();
+      }
       this.loading = false;
     }, err => {
       this.loading = false;
@@ -108,7 +142,7 @@ export class ListaComprobantesComponent implements OnInit {
       fechaDesde: '',
       fechaHasta: '',
       cliente: '',
-      estado: 'pendiente',
+      estado: this.esModoEmitidos ? 'emitido' : 'pendiente',
       origen: 'todos'
     });
     this.page = 1;
@@ -357,18 +391,59 @@ export class ListaComprobantesComponent implements OnInit {
     return textoNumeracionTicketRecibo(el as unknown as Record<string, unknown>);
   }
 
+  /** Guard-rail UI: separa emitidos/pendientes aunque backend devuelva mezcla. */
+  private filtrarSegunReglaPantalla(items: Comprobante[]): Comprobante[] {
+    if (this.esModoPendientes) {
+      return items.filter((el) => !this.esEmitidoParaPantalla(el));
+    }
+    return items.filter((el) => this.esEmitidoParaPantalla(el));
+  }
+
+  private esEmitidoParaPantalla(el: Comprobante): boolean {
+    const tieneTicketPos = this.textoEnumeracionTicketPos(el) !== '—';
+    const tieneCpe = this.textoCpeSunatLista(el) !== '—';
+    if (tieneTicketPos && tieneCpe) {
+      return true;
+    }
+    // Fallback por estados cuando el backend aún no propaga CPE en columnas.
+    return this.estadoIndicaEmitido(el);
+  }
+
+  private estadoIndicaEmitido(el: Comprobante): boolean {
+    const txt = this.normalizarTextoEstado(
+      `${this.textoEstadoOse(el)} ${this.textoEstadoSunat(el)} ${(el.efact_estado || '')}`
+    );
+    if (!txt || txt === '—') {
+      return false;
+    }
+    if (txt.includes('RECHAZ') || txt.includes('ERROR')) {
+      return false;
+    }
+    return (
+      txt.includes('VALIDADO') ||
+      txt.includes('ACEPT') ||
+      txt.includes('ENVIADO') ||
+      txt.includes('PROCESADO') ||
+      txt.includes('AUTORIZ')
+    );
+  }
+
   /** CPE SUNAT: cpe_sunat, comprobante_emitido, comprobante_electronico; fallback serie+numero del ítem. */
   textoCpeSunatLista(el: Comprobante): string {
     const u = textoComprobanteSunatRecibo(el as unknown as Record<string, unknown>);
     if (u !== '—') {
       return u;
     }
-    const s = el.serie != null ? String(el.serie).trim() : '';
-    const n = el.numero != null ? String(el.numero).trim() : '';
-    if (s && n) {
-      return `${s}-${n}`;
+    const serieEfact = (el as any).efact_comprobante_serie ?? (el as any).efactComprobanteSerie;
+    const numeroEfact = (el as any).efact_comprobante_numero ?? (el as any).efactComprobanteNumero;
+    const se = serieEfact != null ? String(serieEfact).trim() : '';
+    const ne = numeroEfact != null ? String(numeroEfact).trim() : '';
+    if (se && ne) {
+      return `${se}-${ne}`;
     }
-    return (s || n || '—').trim() || '—';
+    // Importante: NO usar el fallback genérico serie/numero porque en recibos
+    // suele ser la numeración del ticket POS, no el CPE SUNAT.
+    return '—';
   }
 
   /** Normaliza booleanos que a veces vienen como 0/1 o string desde PHP/JSON. */
@@ -526,16 +601,18 @@ export class ListaComprobantesComponent implements OnInit {
   }
 
   canSelect(element: Comprobante): boolean {
-    if (element.seleccionable === false) {
+    if (this.esModoEmitidos) {
       return false;
     }
-    if (this.estaCerradoEmisionMasiva(element)) {
-      return false;
+    const seleccionable = this.coerceBool((element as any).seleccionable);
+    const pendiente = this.coerceBool((element as any).pendiente_emision);
+    if (seleccionable === true) {
+      return true;
     }
-    if (this.tieneEstadoOseOSunatInformado(element)) {
-      return false;
+    if (pendiente === true) {
+      return true;
     }
-    return this.coerceBool(element.pendiente_emision) === true;
+    return false;
   }
 
   /**
@@ -624,6 +701,9 @@ export class ListaComprobantesComponent implements OnInit {
   }
 
   emitirSeleccionados() {
+    if (this.esModoEmitidos) {
+      return;
+    }
     const items: EfactLoteItem[] = this.lista
       .filter(item => this.canSelect(item) && this.isSelected(item))
       .map(item => {
@@ -644,9 +724,15 @@ export class ListaComprobantesComponent implements OnInit {
       return;
     }
 
+    const plural = items.length === 1 ? '1 ticket' : `${items.length} tickets`;
+    const htmlAgrupado =
+      items.length > 1
+        ? `Se emitirá <b>un solo comprobante SUNAT</b> agrupando ${plural}.`
+        : `Se enviará <b>${plural}</b> a eFact.`;
+
     Swal.fire({
       title: 'Emitir seleccionados',
-      html: `Se enviarán <b>${items.length}</b> comprobantes a eFact.<br><br>¿También reintentar los que ya fueron emitidos?`,
+      html: `${htmlAgrupado}<br><br>¿También reintentar los que ya fueron emitidos?`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Emitir pendientes',
@@ -663,16 +749,21 @@ export class ListaComprobantesComponent implements OnInit {
   }
 
   private emitirLote(items: EfactLoteItem[], reintentar: boolean) {
+    const cantidadItems = items.length;
     const payload: EfactLoteRequest = { items, reintentar };
+    if (this.esModoPendientes && cantidadItems > 1) {
+      payload.agrupar_en_un_comprobante = true;
+      payload.un_solo_comprobante = true;
+    }
     this.loading = true;
     this.service.emitirLoteEfact(payload).subscribe(resp => {
       this.loading = false;
-      this.aplicarResultadoLote(resp?.resultados || []);
+      this.aplicarResultadoLote(resp?.resultados || [], resp);
       const errores = Number(resp?.resumen?.errores || 0);
       if (errores > 0) {
         this.funcionesService.showWarning(`Lote procesado con ${errores} error(es).`);
       } else {
-        this.funcionesService.showSuccess('Lote enviado correctamente a eFact.');
+        this.funcionesService.showSuccess(this.resumenLoteEmitido(resp, cantidadItems));
       }
       this.seleccionados = {};
       this.loadComprobantes();
@@ -683,7 +774,29 @@ export class ListaComprobantesComponent implements OnInit {
     });
   }
 
-  private aplicarResultadoLote(resultados: EfactLoteResultado[]) {
+  private resumenLoteEmitido(resp: any, cantidadItems: number): string {
+    const agrupado = resp?.comprobante_agrupado;
+    const tickets = Array.isArray(resp?.tickets_agrupados) ? resp.tickets_agrupados.length : 0;
+    const cpe = agrupado?.comprobante ||
+      ((agrupado?.serie && agrupado?.numero) ? `${agrupado.serie}-${agrupado.numero}` : '');
+    if (cpe) {
+      const n = tickets || cantidadItems;
+      return `Lote agrupado emitido: ${cpe} para ${n} ticket(s).`;
+    }
+    return 'Lote enviado correctamente a eFact.';
+  }
+
+  private aplicarResultadoLote(resultados: EfactLoteResultado[], resp?: any) {
+    const ticketsAgrupados: string[] = Array.isArray(resp?.tickets_agrupados)
+      ? resp.tickets_agrupados
+          .filter((t: any) => t && t.id != null)
+          .map((t: any) => `${t.origen || 'comprobante'}-${t.id}`)
+      : [];
+    const setAgrupados = new Set<string>(ticketsAgrupados);
+    const agrupadoRaw = resp?.comprobante_agrupado;
+    const comprobanteAgrupado = agrupadoRaw?.comprobante ||
+      ((agrupadoRaw?.serie && agrupadoRaw?.numero) ? `${agrupadoRaw.serie}-${agrupadoRaw.numero}` : '');
+
     const map = new Map<string, EfactLoteResultado>();
     resultados.forEach(r => map.set(`${r.origen}-${r.id}`, r));
 
@@ -700,11 +813,17 @@ export class ListaComprobantesComponent implements OnInit {
           ok: r.ok,
           omitido: !!r.omitido,
           error: r.error || null,
-          motivo: r.motivo
+          motivo: r.motivo,
+          agrupado: setAgrupados.has(key),
+          comprobanteAgrupado: setAgrupados.has(key) ? comprobanteAgrupado : undefined
         }
       };
     });
     this.MainDS = new MatTableDataSource<Comprobante>(this.lista);
+  }
+
+  esResultadoAgrupado(element: Comprobante): boolean {
+    return !!element?.resultadoLote?.agrupado;
   }
 
   verCdr(element: ComprobanteItem) {

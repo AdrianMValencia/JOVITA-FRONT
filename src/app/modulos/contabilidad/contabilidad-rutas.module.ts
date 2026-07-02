@@ -6,12 +6,14 @@ import { Oauth2Guard } from 'src/app/shared/guards/oauth2.guard';
 
 import { RceComprasComponent } from './rce-compras/rce-compras.component';
 import { RvieVentasComponent } from './rvie-ventas/rvie-ventas.component';
+import { VentasComprasUnificadoComponent } from './ventas-compras-unificado/ventas-compras-unificado.component';
 import { InventarioValorizadoSunatComponent } from './inventario-valorizado-sunat/inventario-valorizado-sunat.component';
 import { KardexGeneralComponent } from './kardex-general/kardex-general.component';
 
 export const CONTABILIDAD_RUTAS_COMPONENTES = [
   RceComprasComponent,
   RvieVentasComponent,
+  VentasComprasUnificadoComponent,
   InventarioValorizadoSunatComponent,
   KardexGeneralComponent
 ];
@@ -23,14 +25,19 @@ const routes: Routes = [
     canActivate: [Oauth2Guard],
     children: [
       {
+        path: 'ventas-compras',
+        component: VentasComprasUnificadoComponent,
+        data: { titulo: 'Reporte de Ventas y Compras' }
+      },
+      {
         path: 'rce-compras',
-        component: RceComprasComponent,
-        data: { titulo: 'Reporte de Compras (RCE)' }
+        redirectTo: 'ventas-compras',
+        pathMatch: 'full'
       },
       {
         path: 'rce-ventas',
-        component: RvieVentasComponent,
-        data: { titulo: 'Reporte de Ventas (RVIE)' }
+        redirectTo: 'ventas-compras',
+        pathMatch: 'full'
       },
       {
         path: 'inventario-valorizado-sunat',
@@ -42,7 +49,7 @@ const routes: Routes = [
         component: KardexGeneralComponent,
         data: { titulo: 'Kardex general' }
       },
-      { path: '', pathMatch: 'full', redirectTo: 'rce-compras' }
+      { path: '', pathMatch: 'full', redirectTo: 'ventas-compras' }
     ]
   }
 ];

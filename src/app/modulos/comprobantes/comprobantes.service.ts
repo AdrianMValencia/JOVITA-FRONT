@@ -35,6 +35,7 @@ export interface EfactFilter {
   fechaDesde?: string;
   fechaHasta?: string;
   cliente?: string;
+  modoListado?: 'emitidos' | 'pendientes';
   estado?: EfactListadoEstado;
   origen?: 'recibo' | 'comprobante' | 'todos';
   page?: number;
@@ -87,6 +88,8 @@ export interface ComprobanteItem {
     omitido?: boolean;
     error?: string | null;
     motivo?: string;
+    agrupado?: boolean;
+    comprobanteAgrupado?: string;
   };
 }
 
@@ -116,6 +119,9 @@ export interface EfactLoteItem {
 export interface EfactLoteRequest {
   items: EfactLoteItem[];
   reintentar?: boolean;
+  /** Varios tickets POS → un solo CPE SUNAT en emisión masiva. */
+  agrupar_en_un_comprobante?: boolean;
+  un_solo_comprobante?: boolean;
 }
 
 export interface EfactLoteResultado {
@@ -136,6 +142,13 @@ export interface EfactLoteResponse {
     total: number;
     errores: number;
   };
+  comprobante_agrupado?: {
+    serie?: string;
+    numero?: string | number;
+    comprobante?: string;
+    efact_ticket?: string;
+  };
+  tickets_agrupados?: Array<{ origen?: 'recibo' | 'comprobante'; id?: number }>;
   mensaje?: string;
   status?: number;
 }

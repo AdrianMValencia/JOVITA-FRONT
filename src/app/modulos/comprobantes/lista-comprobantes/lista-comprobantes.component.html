@@ -2,23 +2,24 @@
   <div class="col-lg-12">
       <div class="ibox ">
           <div class="ibox-title">
-              <h5>Emisiones eFact</h5>
+              <h5>{{ tituloPantalla }}</h5>
           </div>
           <div class="ibox-content">
             <form autocomplete="off" id="fgMain" [formGroup]="filterForm">
               <div class="row">
-                <div class="col-lg-3">
+                <div class="col-lg-3" *ngIf="esModoEmitidos">
                   <label class="font-weight-bolder" for="estadoSelect">Estado eFact:</label>
                   <select id="estadoSelect" class="form-control" formControlName="estado">
-                    <option value="pendiente">Pendiente — falta cierre OSE/SUNAT o sin ticket</option>
-                    <option value="proceso">En proceso — con ticket, pendiente validación OSE/SUNAT</option>
                     <option value="completado">Completado — ya cerrado (OSE/SUNAT según estado)</option>
                     <option value="emitido">Emitido (alias de completado)</option>
                     <option value="enviado">Enviado (alias de completado)</option>
-                    <option value="en_proceso">en_proceso (alias de proceso)</option>
-                    <option value="con_ticket">con_ticket (alias de proceso)</option>
-                    <option value="todos">Todos</option>
+                    <option value="proceso">En proceso — con ticket y CPE</option>
+                    <option value="todos">Todos (se filtran solo con CPE + ticket POS)</option>
                   </select>
+                </div>
+                <div class="col-lg-3" *ngIf="esModoPendientes">
+                  <label class="font-weight-bolder">Estado:</label>
+                  <input type="text" class="form-control" value="Pendiente de emisión (solo ticket POS)" readonly>
                 </div>
                 <div class="col-lg-1">
                   <label class="font-weight-bolder" for="origenSelect">Origen:</label>
@@ -49,10 +50,10 @@
                 <div class="col-lg-7 d-flex justify-content-start align-items-center">
                   <button (click)="onSearch()" type="button" class="btn btn-info dim mr-2"><i class="fa fa-search"></i> Buscar</button>
                   <button (click)="onClear()" type="button" class="btn btn-success dim"><i class="fa fa-eraser"></i> Limpiar</button>
-                  <button type="button" class="btn btn-primary dim ml-2" (click)="emitirSeleccionados()" [disabled]="selectedCount === 0 || loading || syncing">
+                  <button *ngIf="esModoPendientes" type="button" class="btn btn-primary dim ml-2" (click)="emitirSeleccionados()" [disabled]="selectedCount === 0 || loading || syncing">
                     <i class="fa fa-send"></i> Emitir seleccionados ({{ selectedCount }})
                   </button>
-                  <button type="button" class="btn btn-outline-secondary dim ml-2" (click)="sincronizarEstadosPortal()"
+                  <button *ngIf="esModoEmitidos" type="button" class="btn btn-outline-secondary dim ml-2" (click)="sincronizarEstadosPortal()"
                     [disabled]="loading || syncing || !lista.length" title="Consulta CDR/ticket en OSE y actualiza estado_ose / estado_sunat">
                     <i class="fa fa-refresh" [class.fa-spin]="syncing"></i> Actualizar estados eFact
                   </button>
@@ -65,12 +66,20 @@
           </div>
           <hr>
           <div class="ibox-content">
-            <div class="row mb-2">
+            <div class="row mb-2" *ngIf="esModoEmitidos">
               <div class="col-lg-12">
                 <small class="text-muted">
-                  Los estados OSE/SUNAT del listado se alinean con el portal tras
-                  <strong>Actualizar estados eFact</strong> (página actual; si hay checks, solo filas marcadas).
-                  Hasta {{ syncLoteMax }} ítems por llamada; varios lotes si hace falta.
+                  Solo se listan registros con <strong>CPE SUNAT</strong> y <strong>ticket POS</strong>.
+                  Los estados OSE/SUNAT se actualizan con <strong>Actualizar estados eFact</strong>
+                  (hasta {{ syncLoteMax }} ítems por llamada).
+                </small>
+              </div>
+            </div>
+            <div class="row mb-2" *ngIf="esModoPendientes">
+              <div class="col-lg-12">
+                <small class="text-muted">
+                  Ventas con ticket de caja sin comprobante electrónico. Al emitir varios tickets juntos
+                  se genera <strong>un solo número de comprobante SUNAT</strong> para el lote.
                 </small>
               </div>
             </div>
@@ -97,19 +106,16 @@
                             <td mat-cell *matCellDef="let element">{{element.origen || '-'}}</td>
                           </ng-container>
 
-                          <!-- ID Column -->
                           <ng-container matColumnDef="tipo">
                             <th mat-header-cell *matHeaderCellDef>Tipo</th>
                             <td mat-cell *matCellDef="let element">{{element.tipo}}</td>
                           </ng-container>
 
-                          <!-- Fecha Column -->
                           <ng-container matColumnDef="fecha">
                             <th mat-header-cell *matHeaderCellDef>Fecha</th>
                             <td mat-cell *matCellDef="let element">{{element.fecha | date}}</td>
                           </ng-container>
 
-                          <!-- CPE SUNAT (no confundir con ticket POS) -->
                           <ng-container matColumnDef="numero">
                             <th mat-header-cell *matHeaderCellDef>CPE SUNAT</th>
                             <td mat-cell *matCellDef="let element" class="text-monospace small">{{ textoCpeSunatLista(element) }}</td>
@@ -125,13 +131,11 @@
                             <td mat-cell *matCellDef="let element" class="text-monospace small">{{ textoTicketColumna(element) }}</td>
                           </ng-container>
 
-                          <!-- Cliente Column -->
                           <ng-container matColumnDef="cliente">
                             <th mat-header-cell *matHeaderCellDef>Cliente</th>
                             <td mat-cell *matCellDef="let element">{{element.cliente}}</td>
                           </ng-container>
 
-                          <!-- Total Column -->
                           <ng-container matColumnDef="total">
                             <th mat-header-cell *matHeaderCellDef class="text-right">Total</th>
                             <td mat-cell *matCellDef="let element" class="text-right">{{element.total | currency}}</td>
@@ -158,6 +162,10 @@
                           <ng-container matColumnDef="resultado">
                             <th mat-header-cell *matHeaderCellDef>Resultado lote</th>
                             <td mat-cell *matCellDef="let element">
+                              <span *ngIf="esResultadoAgrupado(element)" class="badge badge-agrupado mr-1">AGRUPADO</span>
+                              <small *ngIf="esResultadoAgrupado(element) && element.resultadoLote?.comprobanteAgrupado" class="text-muted mr-1">
+                                {{ element.resultadoLote?.comprobanteAgrupado }}
+                              </small>
                               <span *ngIf="element.resultadoLote?.ok && !element.resultadoLote?.omitido" class="text-success">Emitido</span>
                               <span *ngIf="element.resultadoLote?.omitido" class="text-warning">Omitido: {{element.resultadoLote?.motivo}}</span>
                               <span *ngIf="element.resultadoLote?.error" class="text-danger">Error: {{element.resultadoLote?.error}}</span>
@@ -165,16 +173,18 @@
                             </td>
                           </ng-container>
 
-                          <!-- Acciones Column -->
                           <ng-container matColumnDef="acciones">
                             <th mat-header-cell *matHeaderCellDef>Acciones</th>
                             <td mat-cell *matCellDef="let element">
-                              <button type="button" (click)="verCdr(element)" class="btn btn-outline-info btn-sm mr-1" title="Descargar CDR"
-                                [disabled]="!puedeDescargarEfact(element)">CDR</button>
-                              <button type="button" (click)="descargarXml(element)" class="btn btn-outline-secondary btn-sm mr-1" title="Descargar XML"
-                                [disabled]="!puedeDescargarEfact(element)">XML</button>
-                              <button type="button" (click)="descargarPdf(element)" class="btn btn-outline-danger btn-sm" title="Descargar comprobante en PDF ticket (formato térmico); si no hay XML, PDF A4"
-                                [disabled]="!puedeDescargarEfact(element)">PDF</button>
+                              <ng-container *ngIf="esModoEmitidos">
+                                <button type="button" (click)="verCdr(element)" class="btn btn-outline-info btn-sm mr-1" title="Descargar CDR"
+                                  [disabled]="!puedeDescargarEfact(element)">CDR</button>
+                                <button type="button" (click)="descargarXml(element)" class="btn btn-outline-secondary btn-sm mr-1" title="Descargar XML"
+                                  [disabled]="!puedeDescargarEfact(element)">XML</button>
+                                <button type="button" (click)="descargarPdf(element)" class="btn btn-outline-danger btn-sm" title="Descargar comprobante en PDF"
+                                  [disabled]="!puedeDescargarEfact(element)">PDF</button>
+                              </ng-container>
+                              <span *ngIf="esModoPendientes" class="text-muted small">Pendiente</span>
                             </td>
                           </ng-container>
 

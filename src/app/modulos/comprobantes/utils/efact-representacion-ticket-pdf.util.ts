@@ -24,6 +24,7 @@ export interface UblTicketData {
   igvPorcentaje: string;
   formaPago: string;
   totalLetras: string;
+  vendedor: string;
   items: {
     codigo: string;
     cantidad: string;
@@ -254,6 +255,36 @@ function textoFormaPago(code: string): string {
   return c ? `Código ${c}` : '—';
 }
 
+function formatearDocClienteDisplay(nro: string): string {
+  const digits = (nro || '').replace(/\D/g, '');
+  if (!digits) {
+    return '—';
+  }
+  if (digits.length === 11) {
+    return digits;
+  }
+  if (digits.length > 8) {
+    return digits.slice(0, 8);
+  }
+  return digits.padStart(8, '0');
+}
+
+function extraerVendedorDesdeNotes(notes: Element[]): string {
+  for (let i = 0; i < notes.length; i++) {
+    const t = (notes[i].textContent || '').trim();
+    const m = /^Vendedor:\s*(.+)$/i.exec(t);
+    if (m && m[1]) {
+      return m[1].trim();
+    }
+  }
+  return '';
+}
+
+function urlOseRepresentacionImpresa(): string {
+  const raw = String((environment as { efactWebUrl?: string }).efactWebUrl || 'www.efact.pe').trim();
+  return raw.replace(/^https?:\/\//i, '') || 'www.efact.pe';
+}
+
 /**
  * Interpreta XML UBL 2.1 de Factura (incl. boleta como Invoice tipo 03).
  */
@@ -344,6 +375,7 @@ export function parseUblInvoiceXmlParaTicket(xmlText: string): UblTicketData | n
       break;
     }
   }
+  const vendedor = extraerVendedorDesdeNotes(notes);
 
   const payMeans = firstDescendant(root, 'PaymentMeans');
   const payCode = payMeans ? firstChildText(payMeans, 'PaymentMeansCode') : '';
@@ -433,6 +465,7 @@ export function parseUblInvoiceXmlParaTicket(xmlText: string): UblTicketData | n
     igvPorcentaje: igvPorcentaje || '18.00',
     formaPago,
     totalLetras,
+    vendedor,
     items,
     opGravadas: operaciones.opGravadas,
     opInafectas: operaciones.opInafectas,
@@ -536,12 +569,18 @@ function fmtValorUnit4(s: string | undefined | null): string {
  * Genera PDF estrecho (~72 mm) estilo ticket térmico a partir del XML firmado.
  * Devuelve null si el XML no es una Invoice UBL válida o falla el QR.
  */
-export async function generarPdfTicketDesdeUblXml(xmlText: string): Promise<Blob | null> {
+export async function generarPdfTicketDesdeUblXml(
+  xmlText: string,
+  overrides?: { vendedor?: string | null }
+): Promise<Blob | null> {
   const data = parseUblInvoiceXmlParaTicket(xmlText);
   if (!data || !data.rucEmisor || !data.hash) {
     return null;
   }
-  const qrPayload = construirPayloadQrSunat(data);
+  const vendedor =
+    String(overrides?.vendedor || '').trim() || String(data.vendedor || '').trim();
+  const dataRender = { ...data, vendedor };
+  const qrPayload = construirPayloadQrSunat(dataRender);
   let qrDataUrl: string;
   try {
     qrDataUrl = await QRCode.toDataURL(qrPayload, {
@@ -558,7 +597,7 @@ export async function generarPdfTicketDesdeUblXml(xmlText: string): Promise<Blob
   /** Márgenes laterales más amplios (similar a ticket físico ~80 mm útil). */
   const margen = 5.5;
   const textoAncho = ancho - margen * 2;
-  const filasEstimadas = data.items.length * 2 + 28;
+  const filasEstimadas = dataRender.items.length * 2 + 28 + (dataRender.vendedor ? 1 : 0);
   const alto = Math.min(420, Math.max(130, 8 + filasEstimadas * 3.6 + 56));
 
   const doc = new jsPDF({ unit: 'mm', format: [ancho, alto], orientation: 'p' });
@@ -566,7 +605,7 @@ export async function generarPdfTicketDesdeUblXml(xmlText: string): Promise<Blob
   let y = margen + 3;
 
   doc.setFontSize(8);
-  const nombreTicket = String(environment.nombreEmpresaTicketEfact || '').trim() || data.razonEmisor || 'EMISOR';
+  const nombreTicket = String(environment.nombreEmpresaTicketEfact || '').trim() || dataRender.razonEmisor || 'EMISOR';
   const tituloEmp = nombreTicket;
   y = addWrappedLinesCentered(doc, tituloEmp, ancho / 2, y, textoAncho, 3.6);
   doc.setFontSize(6.5);
@@ -594,6 +633,10 @@ export async function generarPdfTicketDesdeUblXml(xmlText: string): Promise<Blob
   doc.setFontSize(6);
   doc.text(`Fecha emisión: ${data.fechaEmision}${data.horaEmision ? ' ' + data.horaEmision : ''}`, margen, y);
   y += 3.2;
+  if (dataRender.vendedor) {
+    doc.text(`CAJERO: ${dataRender.vendedor}`, margen, y);
+    y += 3.2;
+  }
   doc.text(`Forma de pago: ${data.formaPago}`, margen, y);
   y += 3.2;
   doc.text(`Moneda: ${data.monedaEtiqueta} (${data.monedaCodigo})`, margen, y);
@@ -607,7 +650,7 @@ export async function generarPdfTicketDesdeUblXml(xmlText: string): Promise<Blob
   doc.text(`Cliente: ${data.razonCliente || '—'}`, margen, y);
   y += 3.2;
   if (data.nroDocCliente) {
-    doc.text(`Doc.: ${data.tipoDocCliente || '-'} ${data.nroDocCliente}`, margen, y);
+    doc.text(`Doc.: ${formatearDocClienteDisplay(data.nroDocCliente)}`, margen, y);
     y += 3.2;
   }
   if (data.direccionCliente) {
@@ -730,7 +773,7 @@ export async function generarPdfTicketDesdeUblXml(xmlText: string): Promise<Blob
   doc.setFontSize(5.5);
   y = addWrappedLines(
     doc,
-    'Representación impresa de comprobante de pago electrónico. Consulte en www.sunat.gob.pe o en el sitio del OSE.',
+    `Representación impresa de comprobante de pago electrónico. Consulte en ${urlOseRepresentacionImpresa()}.`,
     margen,
     y,
     textoAncho,

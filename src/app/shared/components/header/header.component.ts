@@ -107,6 +107,33 @@ export class HeaderComponent implements OnInit {
       });
     });
 
+    const itemTicketsPendientes = {
+      idModulo: 0,
+      nombre: 'Tickets pendientes de emisión',
+      ruta: 'comprobantes/tickets-pendientes-emision',
+      orden: 99
+    };
+    this.lMenuList.forEach((menu: any) => {
+      const listado = Array.isArray(menu?.listado) ? menu.listado : [];
+      const esMenuComprobantes =
+        String(menu?.nombre || '').toLowerCase().trim() === 'comprobantes' ||
+        listado.some((i: any) =>
+          String(i?.ruta || '').startsWith('comprobantes/')
+        );
+      if (!esMenuComprobantes) {
+        return;
+      }
+      if (!listado.some((i: any) => i?.ruta === itemTicketsPendientes.ruta)) {
+        const baseModulo = listado.find((i: any) => i?.idModulo != null)?.idModulo;
+        listado.push({
+          ...itemTicketsPendientes,
+          idModulo: baseModulo != null ? baseModulo : itemTicketsPendientes.idModulo
+        });
+        listado.sort(this.SortByName);
+      }
+      menu.listado = listado;
+    });
+
     const itemsContabilidadExtra = [
       {
         idModulo: 990100,
@@ -128,7 +155,28 @@ export class HeaderComponent implements OnInit {
       }
     ];
 
+    const rutasReporteLegacy = ['contabilidad/rce-compras', 'contabilidad/rce-ventas'];
+    const itemReporteUnificado = {
+      idModulo: 990100,
+      nombre: 'Reporte de Ventas y Compras',
+      ruta: 'contabilidad/ventas-compras',
+      orden: 1
+    };
+
+    const normalizarReportesContabilidad = (listado: any[]): void => {
+      for (let i = listado.length - 1; i >= 0; i--) {
+        if (rutasReporteLegacy.includes(listado[i]?.ruta)) {
+          listado.splice(i, 1);
+        }
+      }
+      if (!listado.some((s) => s.ruta === itemReporteUnificado.ruta)) {
+        listado.unshift(itemReporteUnificado);
+      }
+      listado.sort(this.SortByName);
+    };
+
     const inyectarItemsContabilidad = (listado: any[]): void => {
+      normalizarReportesContabilidad(listado);
       itemsContabilidadExtra.forEach((item) => {
         if (!listado.some((s) => s.ruta === item.ruta)) {
           listado.push(item);
@@ -146,8 +194,7 @@ export class HeaderComponent implements OnInit {
         nombre: 'Contabilidad',
         orden: 950,
         listado: [
-          { idModulo: 990100, nombre: 'Reporte de Compras', ruta: 'contabilidad/rce-compras', orden: 1 },
-          { idModulo: 990100, nombre: 'Reporte de Ventas', ruta: 'contabilidad/rce-ventas', orden: 2 },
+          itemReporteUnificado,
           ...itemsContabilidadExtra
         ]
       } as Menu);

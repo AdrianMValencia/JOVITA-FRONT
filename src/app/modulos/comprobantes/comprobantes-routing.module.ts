@@ -16,7 +16,12 @@ const routes: Routes = [
           {
               path: "lista-comprobantes",
               component: ListaComprobantesComponent,
-              data: { titulo: "Lista de Comprobantes" }
+              data: { titulo: "Lista de Comprobantes", modo: "emitidos" }
+          },
+          {
+              path: "tickets-pendientes-emision",
+              component: ListaComprobantesComponent,
+              data: { titulo: "Tickets pendientes de emisión", modo: "pendientes" }
           },
           {
               path: "emision-comprobantes",

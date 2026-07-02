@@ -1,7 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from 'src/environments/environment';
+import {
+  mergeRceComprasResponses,
+  mergeRvieVentasResponses
+} from './utils/contabilidad-reporte-sire.util';
 
 export interface RceComprasPeriodo {
   fechaInicio?: string;
@@ -157,6 +162,41 @@ export class ContabilidadService {
     return this.http.get<RvieVentasResponse>(`${this.apiBase}contabilidad/rvie-ventas`, {
       params: this.buildConsultaReporteParams(p)
     });
+  }
+
+  /**
+   * Una tienda → consulta directa; varias → forkJoin y fusión de filas (p. ej. tiendas 1–3 desde JOVITA GENERAL).
+   */
+  obtenerRceComprasPorTiendas(
+    p: RceComprasConsultaParams,
+    idsPuntoVenta: number[],
+    etiquetaConsolidado?: string
+  ): Observable<RceComprasResponse> {
+    if (!idsPuntoVenta.length) {
+      return this.obtenerRceCompras({ ...p, idPuntoVenta: null });
+    }
+    if (idsPuntoVenta.length === 1) {
+      return this.obtenerRceCompras({ ...p, idPuntoVenta: idsPuntoVenta[0] });
+    }
+    return forkJoin(
+      idsPuntoVenta.map((id) => this.obtenerRceCompras({ ...p, idPuntoVenta: id }))
+    ).pipe(map((responses) => mergeRceComprasResponses(responses, etiquetaConsolidado)));
+  }
+
+  obtenerRvieVentasPorTiendas(
+    p: RceComprasConsultaParams,
+    idsPuntoVenta: number[],
+    etiquetaConsolidado?: string
+  ): Observable<RvieVentasResponse> {
+    if (!idsPuntoVenta.length) {
+      return this.obtenerRvieVentas({ ...p, idPuntoVenta: null });
+    }
+    if (idsPuntoVenta.length === 1) {
+      return this.obtenerRvieVentas({ ...p, idPuntoVenta: idsPuntoVenta[0] });
+    }
+    return forkJoin(
+      idsPuntoVenta.map((id) => this.obtenerRvieVentas({ ...p, idPuntoVenta: id }))
+    ).pipe(map((responses) => mergeRvieVentasResponses(responses, etiquetaConsolidado)));
   }
 
   /**
