@@ -1,4 +1,4 @@
-import { Component, OnInit, Type } from '@angular/core';
+import { Component, OnInit, Type, HostListener } from '@angular/core';
 import { FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
 
@@ -157,8 +157,7 @@ export class ModalRecibosComponent implements OnInit {
     $("#codigoBarra").focus();
 
     if (this.usaFacturacionElectronica) {
-      this.cargarCabeceraComprobante();
-      this.cargarTicketPosDesdeNumeracionTickets();
+      this.inicializarCabeceraPorDefecto();
     }
 
     document.addEventListener("keydown", (event: any) =>{
@@ -247,15 +246,38 @@ export class ModalRecibosComponent implements OnInit {
     this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
     this.new_Modal();
     if (this.usaFacturacionElectronica) {
-      this.aplicarDefaultsLocalesCabecera();
-      this.cargarCabeceraComprobante();
-      this.cargarTicketPosDesdeNumeracionTickets();
+      this.inicializarCabeceraPorDefecto();
     }
     this.isModalOpen = false;
     this.productosLista = [];
     setTimeout(() => {
       $("#codigoBarra").focus();
     }, 0);
+  }
+
+  /**
+   * Carga siempre los valores por defecto de cabecera (BOLETA/BE01/VARIOS, ticket POS y correlativo CPE).
+   */
+  private inicializarCabeceraPorDefecto(): void {
+    this.aplicarDefaultsLocalesCabecera();
+    this.formGroup.patchValue({
+      fechaEmision: this.funcionesService.generarFechaLocal(new Date())
+    });
+    this.cargarCabeceraComprobante();
+    this.cargarTicketPosDesdeNumeracionTickets();
+  }
+
+  /** Refresca correlativos al volver a la ventana (sincronización entre equipos/ventanas). */
+  @HostListener('window:focus')
+  onWindowFocus(): void {
+    if (!this.usaFacturacionElectronica || this.isModalOpen) {
+      return;
+    }
+    this.cargarTicketPosDesdeNumeracionTickets();
+    const serie = this.formGroup.get('serieComprobante')?.value;
+    if (serie) {
+      this.resolverNumeracionRecibos(false);
+    }
   }
 
   /**
@@ -607,15 +629,8 @@ export class ModalRecibosComponent implements OnInit {
     const total = this.obtenerTotalVentaActual();
     const debeEmitir = total >= 5;
 
-    if (debeEmitir) {
-      this.emisionManualMenorCinco = false;
-      this.formGroup.patchValue({ emitirEfact: true }, { emitEvent: false });
-      return;
-    }
-
-    if (!this.emisionManualMenorCinco) {
-      this.formGroup.patchValue({ emitirEfact: false }, { emitEvent: false });
-    }
+    this.emisionManualMenorCinco = false;
+    this.formGroup.patchValue({ emitirEfact: debeEmitir }, { emitEvent: false });
   }
 
   onEmitirEfactChange(event: any): void {
@@ -626,7 +641,12 @@ export class ModalRecibosComponent implements OnInit {
     const total = this.obtenerTotalVentaActual();
 
     if (total < 5) {
-      this.emisionManualMenorCinco = checked;
+      this.emisionManualMenorCinco = false;
+      this.formGroup.patchValue({ emitirEfact: false }, { emitEvent: false });
+      if (checked) {
+        this.funcionesService.showInfo('Las ventas menores a S/ 5 no generan comprobante electrónico SUNAT.');
+      }
+      return;
     }
 
     this.formGroup.patchValue({ emitirEfact: checked }, { emitEvent: false });
@@ -1074,12 +1094,21 @@ export class ModalRecibosComponent implements OnInit {
             this.recibos.razonSocial = vfbModal.cliente;
             this.recibos.series = vfbModal.serieTicketPos;
             this.recibos.numeracion = vfbModal.numeroTicketPos;
-            this.recibos.serieComprobanteEfact = vfbModal.serieComprobante;
-            this.recibos.numeroComprobanteEfact = vfbModal.numeroComprobante;
-            const rPayload: any = this.recibos;
-            rPayload.serie_comprobante_efact = vfbModal.serieComprobante;
-            rPayload.numero_comprobante_efact = vfbModal.numeroComprobante;
-            this.recibos.emitirEfact = !!this.formGroup.get("emitirEfact")?.value;
+            const emitir = !!this.formGroup.get('emitirEfact')?.value && this.obtenerTotalVentaActual() >= 5;
+            this.recibos.emitirEfact = emitir;
+            if (emitir) {
+              this.recibos.serieComprobanteEfact = vfbModal.serieComprobante;
+              this.recibos.numeroComprobanteEfact = vfbModal.numeroComprobante;
+              const rPayload: any = this.recibos;
+              rPayload.serie_comprobante_efact = vfbModal.serieComprobante;
+              rPayload.numero_comprobante_efact = vfbModal.numeroComprobante;
+            } else {
+              this.recibos.serieComprobanteEfact = '';
+              this.recibos.numeroComprobanteEfact = '';
+              const rPayload: any = this.recibos;
+              rPayload.serie_comprobante_efact = '';
+              rPayload.numero_comprobante_efact = '';
+            }
           } else {
             this.recibos.emitirEfact = false;
           }

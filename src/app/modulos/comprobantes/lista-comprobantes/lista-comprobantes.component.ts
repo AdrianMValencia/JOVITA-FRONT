@@ -76,8 +76,8 @@ export class ListaComprobantesComponent implements OnInit {
     this.modo = modoRuta === 'pendientes' ? 'pendientes' : 'emitidos';
     this.displayedColumns = this.esModoEmitidos ? [...this.columnasEmitidos] : [...this.columnasPendientes];
     this.nota = this.esModoPendientes
-      ? 'Seleccione uno o más tickets; la emisión masiva genera un solo número de comprobante SUNAT para todos.'
-      : 'Solo comprobantes ya emitidos con número CPE SUNAT y ticket POS.';
+      ? 'Seleccione varios tickets con los checkboxes y pulse «Emitir seleccionados» para generar un solo comprobante SUNAT agrupado.'
+      : 'Solo comprobantes electrónicos emitidos (origen comprobante). Los tickets de caja no se duplican aquí.';
 
     this.filterForm = this.fb.group({
       idPuntoVenta: [''],
@@ -85,7 +85,7 @@ export class ListaComprobantesComponent implements OnInit {
       fechaHasta: [''],
       cliente: [''],
       estado: [this.esModoEmitidos ? 'emitido' : 'pendiente'],
-      origen: ['todos']
+      origen: [this.esModoEmitidos ? 'comprobante' : 'recibo']
     });
   }
 
@@ -143,7 +143,7 @@ export class ListaComprobantesComponent implements OnInit {
       fechaHasta: '',
       cliente: '',
       estado: this.esModoEmitidos ? 'emitido' : 'pendiente',
-      origen: 'todos'
+      origen: this.esModoEmitidos ? 'comprobante' : 'recibo'
     });
     this.page = 1;
     this.pageSize = 15;
@@ -400,13 +400,36 @@ export class ListaComprobantesComponent implements OnInit {
   }
 
   private esEmitidoParaPantalla(el: Comprobante): boolean {
+    const total = parseFloat(String(el.total ?? 0)) || 0;
+    const ticketEfact = this.normalizarTicketDesdeApi(el.efact_ticket ?? (el as any).efactTicket);
+    const estado = this.normalizarTextoEstado(
+      `${this.textoEstadoOse(el)} ${this.textoEstadoSunat(el)} ${el.efact_estado || ''}`
+    );
+    const cpe = this.textoCpeSunatLista(el);
+
+    // Ventas < S/5 sin envío OSE no son comprobantes emitidos (solo pendientes).
+    if (total > 0 && total < 5 && !ticketEfact && cpe !== '—') {
+      if (!estado || estado.includes('NO_ENVI') || estado.includes('ERROR')) {
+        return false;
+      }
+    }
+
     const tieneTicketPos = this.textoEnumeracionTicketPos(el) !== '—';
-    const tieneCpe = this.textoCpeSunatLista(el) !== '—';
+    const tieneCpe = cpe !== '—';
     if (tieneTicketPos && tieneCpe) {
       return true;
     }
     // Fallback por estados cuando el backend aún no propaga CPE en columnas.
     return this.estadoIndicaEmitido(el);
+  }
+
+  /** Formato soles peruanos en listados eFact. */
+  formatoSoles(valor: number | string | null | undefined): string {
+    const n = parseFloat(String(valor ?? 0));
+    if (isNaN(n)) {
+      return 'S/ 0.00';
+    }
+    return `S/ ${n.toFixed(2)}`;
   }
 
   private estadoIndicaEmitido(el: Comprobante): boolean {
