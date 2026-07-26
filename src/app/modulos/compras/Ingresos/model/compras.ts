@@ -25,6 +25,7 @@ export class Compras{
     public detalles?: Array<ComprasDetalles> | any,
     public idProducto?: string | any,
     public totalCompras?: string | any,
-    public percepcion?: string | any
+    public percepcion?: string | any,
+    public serieTipoDocumento?: string | any
   ){}
 }
