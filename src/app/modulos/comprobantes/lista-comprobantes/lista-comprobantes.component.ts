@@ -23,6 +23,7 @@ import {
 import { resolverTicketEfactDesdeItem } from '../utils/efact-ticket-resolver.util';
 import { generarPdfTicketDesdeUblXml } from '../utils/efact-representacion-ticket-pdf.util';
 import { ModoListaEfact } from '../utils/efact-lista.util';
+import { puntoVentaDesdeStorage } from 'src/app/modulos/contabilidad/utils/contabilidad-punto-venta.util';
 
 interface Comprobante extends ComprobanteItem {}
 
@@ -90,6 +91,10 @@ export class ListaComprobantesComponent implements OnInit {
   }
 
   ngOnInit() {
+    const pv = puntoVentaDesdeStorage();
+    if (pv?.id != null && Number(pv.id) > 0) {
+      this.filterForm.patchValue({ idPuntoVenta: pv.id });
+    }
     this.loadComprobantes();
   }
 
@@ -137,8 +142,10 @@ export class ListaComprobantesComponent implements OnInit {
   }
 
   onClear() {
+    const pv = puntoVentaDesdeStorage();
+    const idPvSesion = pv?.id != null && Number(pv.id) > 0 ? pv.id : '';
     this.filterForm.reset({
-      idPuntoVenta: '',
+      idPuntoVenta: idPvSesion,
       fechaDesde: '',
       fechaHasta: '',
       cliente: '',

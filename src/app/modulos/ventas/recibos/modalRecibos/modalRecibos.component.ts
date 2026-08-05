@@ -242,6 +242,8 @@ export class ModalRecibosComponent implements OnInit {
 
   /** Reinicia el modal tras cobrar y vuelve a dejar cabecera con defaults. */
   private resetFormularioDespuesCobro(): void {
+    this.defaultTipoComprobante = 'BOLETA DE VENTA';
+    this.defaultTipoDocumento = '-';
     this.detalles = [];
     this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
     this.new_Modal();
@@ -398,25 +400,14 @@ export class ModalRecibosComponent implements OnInit {
       return;
     }
 
+    this.aplicarTipoDocumentoSegunComprobante(tipo);
+
     this.comprobantesService.obtenerSeries(this.puntoVentas.id).subscribe((resp: any) => {
       this.seriesList = resp?.series || [];
 
-      let defaultSerie = '';
-      const tLower = tipo.toString().toLowerCase();
-      if (tLower.includes('boleta')) {
-        defaultSerie = 'BE01';
-      } else if (tLower.includes('factura')) {
-        defaultSerie = 'FE01';
-      }
-
-      const serieEncontrada = this.seriesList.find((s: any) =>
-        s?.serie && s.serie.toString().toUpperCase() === defaultSerie.toUpperCase()
-      );
-
-      if (serieEncontrada) {
-        this.formGroup.patchValue({ serieComprobante: serieEncontrada.serie });
-      } else if (this.seriesList.length > 0) {
-        this.formGroup.patchValue({ serieComprobante: this.seriesList[0].serie });
+      const serieCpe = this.resolverSerieCpeParaTipo(tipo, this.seriesList);
+      if (serieCpe) {
+        this.formGroup.patchValue({ serieComprobante: serieCpe });
       } else {
         this.formGroup.patchValue({ serieComprobante: '' });
       }
@@ -426,6 +417,44 @@ export class ModalRecibosComponent implements OnInit {
       this.seriesList = [];
       this.formGroup.patchValue({ serieComprobante: '', numeroComprobante: '' });
     });
+  }
+
+  /**
+   * Serie CPE SUNAT (BE01/BE02, FE01/FE02), nunca la serie del ticket POS (TJxx).
+   */
+  private resolverSerieCpeParaTipo(tipo: string, seriesList: any[]): string {
+    const tLower = (tipo || '').toString().toLowerCase();
+    const esFactura = tLower.includes('factura');
+    const prefijoCpe = esFactura ? 'FE' : 'BE';
+    const prefijoLetra = esFactura ? 'F' : 'B';
+
+    const candidatas = (seriesList || [])
+      .map((s) => String(s?.serie ?? '').trim().toUpperCase())
+      .filter((s) => s.length > 0 && !s.startsWith('TJ') && s.startsWith(prefijoLetra));
+
+    const delPatron = candidatas.filter((s) => s.startsWith(prefijoCpe));
+    if (delPatron.length > 0) {
+      return delPatron[0];
+    }
+
+    return candidatas[0] || '';
+  }
+
+  /** Al cambiar factura, el tipo de documento del cliente debe ser RUC. */
+  private aplicarTipoDocumentoSegunComprobante(tipo: string): void {
+    const tLower = (tipo || '').toString().toLowerCase();
+    if (!tLower.includes('factura')) {
+      return;
+    }
+
+    const ruc = this.tiposDocumento.find((d: any) => String(d.codigo) === '6');
+    if (ruc) {
+      this.formGroup.patchValue({
+        tipoDocumento: ruc.codigo,
+        numeroDocumento: '',
+        cliente: ''
+      });
+    }
   }
 
   onTipoDocumentoChange(): void {
