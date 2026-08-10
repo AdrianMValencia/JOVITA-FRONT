@@ -19,6 +19,7 @@ import { FuncionesService } from 'src/app/shared/services/funciones.service';
 import { ModalItemsConsultarComponent } from '../modalItemsConsultar/modalItemsConsultar.component';
 import { ModalRecibosItemsComponent } from '../modalRecibosItems/modalRecibosItems.component';
 import { ModalRecibosMedioPagosComponent } from '../modalRecibosMedioPagos/modalRecibosMedioPagos.component';
+import { ModalRecibosPDFComponent } from '../modalRecibosPDF/modalRecibosPDF.component';
 import { ModalconvertirkilosComponent } from '../modalconvertirkilos/modalconvertirkilos.component';
 import { Recibos } from '../model/recibos';
 import { RecibosDetalles } from '../model/recibosDetalles';
@@ -86,6 +87,10 @@ export class ModalRecibosComponent implements OnInit {
   private emisionManualMenorCinco: boolean = false;
   private defaultTipoComprobante: string = 'BOLETA DE VENTA';
   private defaultTipoDocumento: string = '-';
+  /** Evita que respuestas async de series de otra tienda/tipo pisen la selección actual. */
+  private serieCpeLoadSeq = 0;
+  /** Evita que un correlativo de otra tienda/serie pise el valor actual. */
+  private numeracionCpeLoadSeq = 0;
 
   NgbModalOptions: NgbModalOptions = {
     size: 'lg',
@@ -153,6 +158,7 @@ export class ModalRecibosComponent implements OnInit {
   get getModal() { return this.formGroup.controls; }
 
   ngOnInit() {
+    this.refrescarContextoPuntoVenta();
     this.funcionesService.hideLoading();
     $("#codigoBarra").focus();
 
@@ -181,6 +187,24 @@ export class ModalRecibosComponent implements OnInit {
           this.calcularMayoreo();
       }
     });
+  }
+
+  /** Lee el punto de venta activo (tras cambio de tienda con reload o al entrar a la pantalla). */
+  private refrescarContextoPuntoVenta(): void {
+    const raw = localStorage.getItem('puntosVenta');
+    if (raw) {
+      this.puntoVentas = JSON.parse(raw);
+      this.puntoVentaStorage = raw;
+    }
+    this.usaFacturacionElectronica = usaFacturacionElectronicaPos(this.puntoVentas?.nombre);
+    this.serieCpeLoadSeq++;
+    this.numeracionCpeLoadSeq++;
+    if (this.formGroup) {
+      this.formGroup.patchValue({
+        idPuntoVenta: this.puntoVentas.id,
+        puntoventa: this.puntoVentas.nombre
+      });
+    }
   }
 
   cargarCabeceraComprobante(): void {
@@ -240,32 +264,92 @@ export class ModalRecibosComponent implements OnInit {
     this.cargarTicketPosDesdeNumeracionTickets();
   }
 
-  /** Reinicia el modal tras cobrar y vuelve a dejar cabecera con defaults. */
+  /** Reinicia el formulario tras cobrar y deja cabecera en BOLETA + VARIOS. */
   private resetFormularioDespuesCobro(): void {
-    this.defaultTipoComprobante = 'BOLETA DE VENTA';
-    this.defaultTipoDocumento = '-';
     this.detalles = [];
     this.dataSource = new MatTableDataSource<RecibosDetalles>(this.detalles);
-    this.new_Modal();
-    if (this.usaFacturacionElectronica) {
-      this.inicializarCabeceraPorDefecto();
-    }
-    this.isModalOpen = false;
     this.productosLista = [];
+    this.isModalOpen = false;
+    this.emisionManualMenorCinco = false;
+
+    this.formGroup.patchValue({
+      id: 0,
+      porcentajeDesc: '',
+      montoDesc: '0.00',
+      totalGravada: '0.00',
+      totalIgv: '0.00',
+      otrosCargo: '',
+      total: '0.00',
+      pagado: '',
+      vuelto: '',
+      emitirEfact: false,
+      status: true
+    });
+
+    if (this.usaFacturacionElectronica) {
+      this.restablecerCabeceraPorDefecto();
+    }
+
     setTimeout(() => {
       $("#codigoBarra").focus();
     }, 0);
+  }
+
+  /** Tras cobrar con eFact: muestra el PDF y resetea el formulario al cerrar el comprobante. */
+  private abrirPdfComprobanteYResetear(response: Record<string, unknown>): void {
+    const modalRef = this._modalService.open(ModalRecibosPDFComponent, this.NgbModalOptions);
+    const guardado = (response['recibos'] as Record<string, unknown>) || {};
+    const merged: Record<string, unknown> = { ...guardado };
+    if (response['efact_ticket'] != null && merged['efact_ticket'] == null) {
+      merged['efact_ticket'] = response['efact_ticket'];
+    }
+    if (response['ticket'] != null && merged['ticket'] == null) {
+      merged['ticket'] = response['ticket'];
+    }
+    if (response['ticket_ose'] != null && merged['ticket_ose'] == null) {
+      merged['ticket_ose'] = response['ticket_ose'];
+    }
+    if (response['comprobante_emitido'] != null && merged['comprobante_emitido'] == null) {
+      merged['comprobante_emitido'] = response['comprobante_emitido'];
+    }
+    modalRef.componentInstance.fromParent = {
+      recibos: merged,
+      preferirComprobanteEfact: true
+    };
+
+    const alCerrarPdf = () => this.resetFormularioDespuesCobro();
+    modalRef.result.then(alCerrarPdf, alCerrarPdf);
+  }
+
+  /** Restaura cabecera SUNAT/eFact a BOLETA DE VENTA y VARIOS - VENTAS MENORES. */
+  private restablecerCabeceraPorDefecto(): void {
+    this.sincronizarCabeceraConTiendaActual();
   }
 
   /**
    * Carga siempre los valores por defecto de cabecera (BOLETA/BE01/VARIOS, ticket POS y correlativo CPE).
    */
   private inicializarCabeceraPorDefecto(): void {
-    this.aplicarDefaultsLocalesCabecera();
+    this.sincronizarCabeceraConTiendaActual();
+  }
+
+  /**
+   * Aplica defaults de cabecera según la tienda activa: BOLETA + serie CPE de la tienda + VARIOS.
+   */
+  private sincronizarCabeceraConTiendaActual(): void {
+    this.defaultTipoComprobante = 'BOLETA DE VENTA';
+    this.defaultTipoDocumento = '-';
     this.formGroup.patchValue({
-      fechaEmision: this.funcionesService.generarFechaLocal(new Date())
+      fechaEmision: this.funcionesService.generarFechaLocal(new Date()),
+      idPuntoVenta: this.puntoVentas.id,
+      puntoventa: this.puntoVentas.nombre
     });
-    this.cargarCabeceraComprobante();
+
+    if (this.tiposComprobante.length > 0) {
+      this.aplicarDefaultsLocalesCabecera();
+    } else {
+      this.cargarCabeceraComprobante();
+    }
     this.cargarTicketPosDesdeNumeracionTickets();
   }
 
@@ -322,7 +406,6 @@ export class ModalRecibosComponent implements OnInit {
       const preferido = this.tiposComprobante.find((t: any) =>
         (t.documento || '').toString().trim().toUpperCase() === this.defaultTipoComprobante.toUpperCase()
       );
-      // Default: BOLETA DE VENTA
       const boleta = this.tiposComprobante.find((t: any) =>
         (t.documento || '').toString().trim().toUpperCase() === 'BOLETA DE VENTA'
       );
@@ -341,7 +424,6 @@ export class ModalRecibosComponent implements OnInit {
         this.onTipoComprobanteChange();
       }
     }, () => {
-      // Mantener combos previos para no dejar selects en blanco ante fallos transitorios.
       if (this.tiposComprobante.length > 0) {
         this.aplicarDefaultsLocalesCabecera();
       }
@@ -355,6 +437,12 @@ export class ModalRecibosComponent implements OnInit {
         codigo: item.codigo,
         tipo: item.tipo || item.descripcion
       }));
+
+      const tipoComprobante = this.formGroup.get('tipoComprobante')?.value;
+      if (tipoComprobante) {
+        this.aplicarTipoDocumentoSegunComprobante(tipoComprobante);
+        return;
+      }
 
       // Default: VARIOS - VENTAS MENORES A S/.700.00 Y OTROS
       const preferido = this.tiposDocumento.find((d: any) => d.codigo === this.defaultTipoDocumento);
@@ -391,8 +479,9 @@ export class ModalRecibosComponent implements OnInit {
 
   onTipoComprobanteChange(): void {
     const tipo = this.formGroup.get('tipoComprobante')?.value;
+    const idPunto = this.puntoVentas?.id;
+    const loadSeq = ++this.serieCpeLoadSeq;
 
-    // Siempre limpiar campos dependientes cuando cambia el tipo
     this.seriesList = [];
     this.formGroup.patchValue({ serieComprobante: '', numeroComprobante: '' });
 
@@ -402,8 +491,16 @@ export class ModalRecibosComponent implements OnInit {
 
     this.aplicarTipoDocumentoSegunComprobante(tipo);
 
-    this.comprobantesService.obtenerSeries(this.puntoVentas.id).subscribe((resp: any) => {
-      this.seriesList = resp?.series || [];
+    this.comprobantesService.obtenerSeries(idPunto).subscribe((resp: any) => {
+      if (loadSeq !== this.serieCpeLoadSeq) {
+        return;
+      }
+      if (this.formGroup.get('tipoComprobante')?.value !== tipo) {
+        return;
+      }
+
+      const rawSeries = resp?.series || [];
+      this.seriesList = this.filtrarSeriesCpe(rawSeries);
 
       const serieCpe = this.resolverSerieCpeParaTipo(tipo, this.seriesList);
       if (serieCpe) {
@@ -414,46 +511,103 @@ export class ModalRecibosComponent implements OnInit {
 
       this.onSerieComprobanteChange();
     }, () => {
+      if (loadSeq !== this.serieCpeLoadSeq) {
+        return;
+      }
       this.seriesList = [];
       this.formGroup.patchValue({ serieComprobante: '', numeroComprobante: '' });
     });
   }
 
+  /** Solo series CPE SUNAT (BE/FE), nunca tickets POS (TJxx). */
+  private filtrarSeriesCpe(seriesList: any[]): any[] {
+    return (seriesList || []).filter((s) => {
+      const code = this.normalizarCodigoSerie(s);
+      return code.startsWith('BE') || code.startsWith('FE');
+    });
+  }
+
+  private normalizarCodigoSerie(s: any): string {
+    if (s == null) {
+      return '';
+    }
+    if (typeof s === 'string') {
+      return s.trim().toUpperCase();
+    }
+    return String(s?.serie ?? '').trim().toUpperCase();
+  }
+
+  private valorSerieDesdeItem(s: any): string {
+    if (s == null) {
+      return '';
+    }
+    if (typeof s === 'string') {
+      return s.trim();
+    }
+    return String(s?.serie ?? '').trim();
+  }
+
   /**
    * Serie CPE SUNAT (BE01/BE02, FE01/FE02), nunca la serie del ticket POS (TJxx).
+   * JOVITA 1 y entorno prueba usan BE01/FE01; otras tiendas pueden usar BE02/FE02, etc.
    */
   private resolverSerieCpeParaTipo(tipo: string, seriesList: any[]): string {
     const tLower = (tipo || '').toString().toLowerCase();
     const esFactura = tLower.includes('factura');
+    const prefijosPreferidos = esFactura ? ['FE01', 'FE02'] : ['BE01', 'BE02'];
     const prefijoCpe = esFactura ? 'FE' : 'BE';
     const prefijoLetra = esFactura ? 'F' : 'B';
 
     const candidatas = (seriesList || [])
-      .map((s) => String(s?.serie ?? '').trim().toUpperCase())
-      .filter((s) => s.length > 0 && !s.startsWith('TJ') && s.startsWith(prefijoLetra));
+      .map((s) => ({ raw: s, code: this.normalizarCodigoSerie(s) }))
+      .filter((x) => x.code.length > 0 && !x.code.startsWith('TJ') && x.code.startsWith(prefijoLetra));
 
-    const delPatron = candidatas.filter((s) => s.startsWith(prefijoCpe));
-    if (delPatron.length > 0) {
-      return delPatron[0];
+    for (const pref of prefijosPreferidos) {
+      const found = candidatas.find((x) => x.code === pref);
+      if (found) {
+        return this.valorSerieDesdeItem(found.raw) || found.code;
+      }
     }
 
-    return candidatas[0] || '';
+    const delPatron = candidatas.filter((x) => x.code.startsWith(prefijoCpe));
+    if (delPatron.length > 0) {
+      return this.valorSerieDesdeItem(delPatron[0].raw) || delPatron[0].code;
+    }
+
+    return candidatas[0] ? (this.valorSerieDesdeItem(candidatas[0].raw) || candidatas[0].code) : '';
   }
 
-  /** Al cambiar factura, el tipo de documento del cliente debe ser RUC. */
+  /** Al cambiar comprobante: Boleta → VARIOS; Factura → RUC. */
   private aplicarTipoDocumentoSegunComprobante(tipo: string): void {
     const tLower = (tipo || '').toString().toLowerCase();
-    if (!tLower.includes('factura')) {
+    const esFactura = tLower.includes('factura');
+    const esBoleta = tLower.includes('boleta');
+
+    if (!esFactura && !esBoleta) {
       return;
     }
 
-    const ruc = this.tiposDocumento.find((d: any) => String(d.codigo) === '6');
-    if (ruc) {
+    if (esFactura) {
+      const ruc = this.tiposDocumento.find((d: any) => String(d.codigo) === '6');
+      if (ruc) {
+        this.formGroup.patchValue({
+          tipoDocumento: ruc.codigo,
+          numeroDocumento: '',
+          cliente: ''
+        });
+        this.defaultTipoDocumento = ruc.codigo;
+      }
+      return;
+    }
+
+    const varios = this.tiposDocumento.find((d: any) => String(d.codigo) === '-');
+    if (varios) {
       this.formGroup.patchValue({
-        tipoDocumento: ruc.codigo,
-        numeroDocumento: '',
-        cliente: ''
+        tipoDocumento: varios.codigo,
+        numeroDocumento: '00000000',
+        cliente: 'CLIENTES VARIOS'
       });
+      this.defaultTipoDocumento = varios.codigo;
     }
   }
 
@@ -548,6 +702,9 @@ export class ModalRecibosComponent implements OnInit {
   private resolverNumeracionRecibos(mostrarMensajeSiFalla: boolean, onSuccess?: () => void): void {
     const serie = this.formGroup.get('serieComprobante')?.value;
     const tipoComprobante = this.formGroup.get('tipoComprobante')?.value;
+    const idPuntoVenta = Number(this.puntoVentas?.id ?? this.formGroup.get('idPuntoVenta')?.value ?? 0);
+    const loadSeq = ++this.numeracionCpeLoadSeq;
+
     if (!serie) {
       this.formGroup.patchValue({ numeroComprobante: '' });
       if (mostrarMensajeSiFalla) {
@@ -556,15 +713,34 @@ export class ModalRecibosComponent implements OnInit {
       return;
     }
 
+    if (!idPuntoVenta) {
+      this.formGroup.patchValue({ numeroComprobante: '' });
+      if (mostrarMensajeSiFalla) {
+        this.funcionesService.showWarning('No se identificó el punto de venta para el correlativo CPE.');
+      }
+      return;
+    }
+
     this.recibosService
       .obtenerSiguienteNumeracion({
-        idPuntoVenta: this.puntoVentas.id,
+        idPuntoVenta,
         tipoComprobante,
         serieComprobante: serie,
         series: serie
       })
       .subscribe(
         (nr) => {
+          if (loadSeq !== this.numeracionCpeLoadSeq) {
+            return;
+          }
+          if (this.formGroup.get('serieComprobante')?.value !== serie) {
+            return;
+          }
+          const idPuntoActual = Number(this.puntoVentas?.id ?? this.formGroup.get('idPuntoVenta')?.value ?? 0);
+          if (idPuntoActual !== idPuntoVenta) {
+            return;
+          }
+
           const sig = nr?.siguiente;
           const numero = sig !== undefined && sig !== null && sig !== '' ? String(sig) : '';
           this.formGroup.patchValue({ numeroComprobante: numero });
@@ -577,9 +753,31 @@ export class ModalRecibosComponent implements OnInit {
           }
         },
         () => {
+          if (loadSeq !== this.numeracionCpeLoadSeq) {
+            return;
+          }
+          if (this.formGroup.get('serieComprobante')?.value !== serie) {
+            return;
+          }
+          const idPuntoActual = Number(this.puntoVentas?.id ?? this.formGroup.get('idPuntoVenta')?.value ?? 0);
+          if (idPuntoActual !== idPuntoVenta) {
+            return;
+          }
+
           // fallback legacy para no bloquear el flujo
-          this.comprobantesService.getNumeracion(serie, this.puntoVentas.id).subscribe(
+          this.comprobantesService.getNumeracion(serie, idPuntoVenta).subscribe(
             (nr: any) => {
+              if (loadSeq !== this.numeracionCpeLoadSeq) {
+                return;
+              }
+              if (this.formGroup.get('serieComprobante')?.value !== serie) {
+                return;
+              }
+              const idPuntoActualFb = Number(this.puntoVentas?.id ?? this.formGroup.get('idPuntoVenta')?.value ?? 0);
+              if (idPuntoActualFb !== idPuntoVenta) {
+                return;
+              }
+
               const sig = nr?.siguiente;
               const numero = sig !== undefined && sig !== null && sig !== '' ? String(sig) : '';
               this.formGroup.patchValue({ numeroComprobante: numero });
@@ -591,6 +789,9 @@ export class ModalRecibosComponent implements OnInit {
               }
             },
             () => {
+              if (loadSeq !== this.numeracionCpeLoadSeq) {
+                return;
+              }
               this.formGroup.patchValue({ numeroComprobante: '' });
               if (mostrarMensajeSiFalla) {
                 this.funcionesService.showWarning(
@@ -851,7 +1052,9 @@ export class ModalRecibosComponent implements OnInit {
           }
           break;
         case 'medioPago':
-          if (result.value === 'loadAgain') {
+          if (result.value === 'showPdf') {
+            this.abrirPdfComprobanteYResetear(result.response || {});
+          } else if (result.value === 'loadAgain') {
             this.resetFormularioDespuesCobro();
           }
           break;

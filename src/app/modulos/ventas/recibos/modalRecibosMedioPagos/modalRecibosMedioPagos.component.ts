@@ -1,19 +1,13 @@
-import { Component, OnInit, Input, Type } from '@angular/core';
+import { Component, OnInit, Input } from '@angular/core';
 import { RecibosService } from '../service/recibos.service';
 import { FuncionesService } from '../../../../shared/services/funciones.service';
-import { NgbActiveModal, NgbModal, NgbModalOptions } from '@ng-bootstrap/ng-bootstrap';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { Recibos } from '../model/recibos';
 import { RecibosMedioPago } from '../model/recibosMedioPago';
 import { Medio } from '../model/medio';
 import { MediopagoService } from 'src/app/shared/services/mediopago/mediopago.service';
 import { PuntosVenta } from 'src/app/modulos/mantenimientos/puntosventa/model/puntosVenta';
-import { ModalRecibosPDFComponent } from '../modalRecibosPDF/modalRecibosPDF.component';
 import { mensajeToastExitoCobroRecibo } from '../utils/recibo-listado-ui.util';
-
-// Modals
-const MODALS: { [name: string]: Type<any> } = {
-  downloadPDF: ModalRecibosPDFComponent,
-};
 
 @Component({
   selector: 'app-modalRecibosMedioPagos',
@@ -38,21 +32,11 @@ export class ModalRecibosMedioPagosComponent implements OnInit {
    vuelto?: string | any;
    opcion: string | any = '';
 
-   NgbModalOptions: NgbModalOptions = {
-    size: 'xl',
-    centered: true,
-    scrollable: true,
-    keyboard: false,
-    backdrop: 'static',
-    windowClass: 'modal-holder'
-  };
-
   constructor(
     public service: RecibosService,
     private mediopagoService: MediopagoService,
     public funcionesService: FuncionesService,
-    public activeModal: NgbActiveModal,
-    private _modalService: NgbModal
+    public activeModal: NgbActiveModal
   ) {}
 
   ngOnInit() {
@@ -229,30 +213,10 @@ export class ModalRecibosMedioPagosComponent implements OnInit {
         const oReturn: any = new Object();
 
         oReturn['modal'] = 'medioPago';
-        oReturn['value'] = 'loadAgain';
+        oReturn['value'] = 'showPdf';
+        oReturn['response'] = response;
 
         this.activeModal.close(oReturn);
-
-        const modalRef = this._modalService.open(MODALS['downloadPDF'], this.NgbModalOptions);
-        const obj: any = new Object();
-        const guardado = response.recibos || {};
-        const merged: any = { ...guardado };
-        const raiz: any = response;
-        if (raiz?.efact_ticket != null && merged.efact_ticket == null) {
-          merged.efact_ticket = raiz.efact_ticket;
-        }
-        if (raiz?.ticket != null && merged['ticket'] == null) {
-          merged['ticket'] = raiz.ticket;
-        }
-        if (raiz?.ticket_ose != null && merged['ticket_ose'] == null) {
-          merged['ticket_ose'] = raiz.ticket_ose;
-        }
-        if (raiz?.comprobante_emitido != null && merged.comprobante_emitido == null) {
-          merged.comprobante_emitido = raiz.comprobante_emitido;
-        }
-        obj['recibos'] = merged;
-        obj['preferirComprobanteEfact'] = true;
-        modalRef.componentInstance.fromParent = obj;
 
         this.funcionesService.hideLoading();
         this.progressBar = false;
