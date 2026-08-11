@@ -554,7 +554,7 @@ export class ModalRecibosComponent implements OnInit {
   private resolverSerieCpeParaTipo(tipo: string, seriesList: any[]): string {
     const tLower = (tipo || '').toString().toLowerCase();
     const esFactura = tLower.includes('factura');
-    const prefijosPreferidos = esFactura ? ['FE01', 'FE02'] : ['BE01', 'BE02'];
+    const prefijosPreferidos = esFactura ? ['FE01', 'FE02', 'FE03'] : ['BE01', 'BE02', 'BE03'];
     const prefijoCpe = esFactura ? 'FE' : 'BE';
     const prefijoLetra = esFactura ? 'F' : 'B';
 
